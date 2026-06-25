@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_service.dart';
 import '../core/auth_service.dart';
 import '../core/liked_service.dart';
@@ -32,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Song> _recentSongs = [];
   bool _isFirstLoad = true;
   bool _hasError = false;
+  bool _isOffline = false;
   PackageInfo? _packageInfo;
 
   @override
@@ -46,7 +49,71 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _packageInfo = info);
   }
 
+  Future<void> _loadCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sectionsStr = prefs.getString('cached_home_sections');
+      final latestStr = prefs.getString('cached_home_latest');
+      final List<_SongSection> cachedSections = [];
+      List<Song> cachedLatest = [];
+
+      if (sectionsStr != null && sectionsStr.isNotEmpty) {
+        final List decoded = jsonDecode(sectionsStr);
+        for (final item in decoded) {
+          if (item is Map) {
+            final title = item['title'] as String? ?? '';
+            final List songsRaw = item['songs'] as List? ?? [];
+            final List<Song> songs = songsRaw
+                .whereType<Map>()
+                .map((s) => Song.fromMap(Map<String, dynamic>.from(s)))
+                .toList();
+            if (title.isNotEmpty && songs.isNotEmpty) {
+              cachedSections.add(_SongSection(title, songs));
+            }
+          }
+        }
+      }
+
+      if (latestStr != null && latestStr.isNotEmpty) {
+        final List decoded = jsonDecode(latestStr);
+        cachedLatest = decoded
+            .whereType<Map>()
+            .map((s) => Song.fromMap(Map<String, dynamic>.from(s)))
+            .toList();
+      }
+
+      if (cachedSections.isNotEmpty || cachedLatest.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _sections
+              ..clear()
+              ..addAll(cachedSections);
+            _latestSongs = cachedLatest;
+            _isFirstLoad = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading home cache: $e');
+    }
+  }
+
+  Future<void> _saveCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List sectionsData = _sections.map((sec) => {
+        'title': sec.title,
+        'songs': sec.songs.map((s) => s.toMap()).toList(),
+      }).toList();
+      await prefs.setString('cached_home_sections', jsonEncode(sectionsData));
+      await prefs.setString('cached_home_latest', jsonEncode(_latestSongs.map((s) => s.toMap()).toList()));
+    } catch (e) {
+      debugPrint('Error saving home cache: $e');
+    }
+  }
+
   Future<void> _initAndFetch() async {
+    await _loadCache();
     await _taste.load();
     _restoreLastSong();
     _buildRecentSongs();
@@ -177,28 +244,45 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final results = await Future.wait(futures);
+      final hasData = results.any((list) => list.isNotEmpty);
 
-      for (int i = 0; i < sectionNames.length; i++) {
-        if (results[i].isNotEmpty) {
-          sections.add(_SongSection(sectionNames[i], results[i]));
+      if (hasData) {
+        for (int i = 0; i < sectionNames.length; i++) {
+          if (results[i].isNotEmpty) {
+            sections.add(_SongSection(sectionNames[i], results[i]));
+          }
         }
-      }
-
-      if (mounted) {
-        setState(() {
-          _sections
-            ..clear()
-            ..addAll(sections);
-          _latestSongs = results.last;
-          _isFirstLoad = false;
-          _hasError = false;
-        });
+        if (mounted) {
+          setState(() {
+            _sections
+              ..clear()
+              ..addAll(sections);
+            _latestSongs = results.last;
+            _isFirstLoad = false;
+            _hasError = false;
+            _isOffline = false;
+          });
+          _saveCache();
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isOffline = true;
+            _isFirstLoad = false;
+            if (_sections.isEmpty && _latestSongs.isEmpty) {
+              _hasError = true;
+            }
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
+          _isOffline = true;
           _isFirstLoad = false;
-          _hasError = true;
+          if (_sections.isEmpty && _latestSongs.isEmpty) {
+            _hasError = true;
+          }
         });
       }
     }
@@ -241,55 +325,91 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildPillButtons(),
         Expanded(
           child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.wifi_off_rounded,
-                  size: 52,
-                  color: AppTheme.textSecondary.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Could not load music',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textSecondary,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.wifi_off_rounded,
+                    size: 52,
+                    color: AppTheme.textSecondary.withValues(alpha: 0.4),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Check your connection and try again',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _isFirstLoad = true;
-                      _hasError = false;
-                    });
-                    _fetchAll();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accent,
-                    foregroundColor: AppTheme.background,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Network is not available',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondary,
                     ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 12),
                   ),
-                  child: const Text(
-                    'Retry',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Please check your connection, or see your playlists to listen to downloaded songs.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 28),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _isFirstLoad = true;
+                            _hasError = false;
+                          });
+                          _fetchAll();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accent,
+                          foregroundColor: AppTheme.background,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text(
+                          'Retry',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (_, __, ___) => const PlaylistsScreen(),
+                              transitionsBuilder: (_, anim, __, child) =>
+                                  FadeTransition(opacity: anim, child: child),
+                              transitionDuration: const Duration(milliseconds: 200),
+                            ),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.accent,
+                          side: const BorderSide(color: AppTheme.accent, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                        ),
+                        child: const Text(
+                          'View Playlists',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -309,6 +429,81 @@ class _HomeScreenState extends State<HomeScreen> {
         slivers: [
           SliverToBoxAdapter(child: _buildHeader()),
           SliverToBoxAdapter(child: _buildPillButtons()),
+          if (_isOffline)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppTheme.accent.withValues(alpha: 0.25),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      color: AppTheme.accent,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Offline Mode',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Network unavailable. Listen to downloaded playlists.',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (_, __, ___) => const PlaylistsScreen(),
+                            transitionsBuilder: (_, anim, __, child) =>
+                                FadeTransition(opacity: anim, child: child),
+                            transitionDuration: const Duration(milliseconds: 200),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'View Playlists',
+                        style: TextStyle(
+                          color: AppTheme.accent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_recentSongs.isNotEmpty) ...[
             const SliverToBoxAdapter(
               child: SectionHeader(title: 'Recently Played'),

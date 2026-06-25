@@ -33,18 +33,11 @@ class LikedService {
 
   String get _localKey => 'liked_songs_${_uid ?? 'guest'}';
 
-  Future<void> load() async {
-    _songs = [];
-    _likedIds.clear();
-    likedNotifier.value = [];
-
-    await _loadLocal();
-
+  Future<void> _fetchServer() async {
     final doc = _doc;
     if (doc == null) return;
-
     try {
-      final snap = await doc.get();
+      final snap = await doc.get().timeout(const Duration(seconds: 4));
       if (!snap.exists) return;
       final data = snap.data() as Map<String, dynamic>? ?? {};
       final raw = data['songs'] as List? ?? [];
@@ -57,8 +50,16 @@ class LikedService {
       likedNotifier.value = List.unmodifiable(_songs);
       await _saveLocal();
     } catch (e, s) {
-      debugPrint('LikedService.load error: $e\n$s');
+      debugPrint('LikedService._fetchServer error: $e\n$s');
     }
+  }
+
+  Future<void> load() async {
+    _songs = [];
+    _likedIds.clear();
+    likedNotifier.value = [];
+    await _loadLocal();
+    _fetchServer();
   }
 
   Future<void> _loadLocal() async {

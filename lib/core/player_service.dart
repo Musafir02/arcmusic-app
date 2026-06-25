@@ -144,8 +144,8 @@ class AudioPlayerHandler extends BaseAudioHandler
     ));
   }
 
-  Future<void> _playSongInternal(Song song) async {
-    if (song.downloadUrl == null || song.downloadUrl!.isEmpty) return;
+  Future<bool> _playSongInternal(Song song, {bool showErrorMessage = true}) async {
+    if (song.downloadUrl == null || song.downloadUrl!.isEmpty) return false;
 
     final oldSong = _currentSong;
     final oldStartTime = _songStartTime;
@@ -198,15 +198,18 @@ class AudioPlayerHandler extends BaseAudioHandler
           _preloadNextSong();
         });
       }
+      return true;
     } catch (e, s) {
       debugPrint('Playback error: $e\n$s');
-      final isDownloaded = DownloadService().isSongDownloaded(song.id);
-      if (!isDownloaded) {
-        playbackErrorNotifier.value = 'Offline: This song is not downloaded.';
-        playbackErrorNotifier.value = null;
-      } else {
-        playbackErrorNotifier.value = 'Failed to play downloaded song: $e';
-        playbackErrorNotifier.value = null;
+      if (showErrorMessage) {
+        final isDownloaded = DownloadService().isSongDownloaded(song.id);
+        if (!isDownloaded) {
+          playbackErrorNotifier.value = 'Offline: This song is not downloaded.';
+          playbackErrorNotifier.value = null;
+        } else {
+          playbackErrorNotifier.value = 'Failed to play downloaded song: $e';
+          playbackErrorNotifier.value = null;
+        }
       }
       if (_currentSong?.id == song.id) {
         _currentSong = oldSong;
@@ -232,6 +235,7 @@ class AudioPlayerHandler extends BaseAudioHandler
           mediaItem.add(null);
         }
       }
+      return false;
     }
   }
 
@@ -330,20 +334,38 @@ class AudioPlayerHandler extends BaseAudioHandler
   Future<void> skipToNext() async {
     if (_currentPlaylist == null || _currentPlaylist!.isEmpty) return;
 
-    if (_currentIndex < _currentPlaylist!.length - 1) {
-      _currentIndex++;
-      await _playSongInternal(_currentPlaylist![_currentIndex]);
-    } else {
-      if (_isPlaylistMode) {
-        _currentIndex = 0;
-        await _playSongInternal(_currentPlaylist![_currentIndex]);
-      } else if (_currentSong != null) {
-        await _loadSuggestions(_currentSong!.id);
-        if (_currentIndex < _currentPlaylist!.length - 1) {
-          _currentIndex++;
-          await _playSongInternal(_currentPlaylist![_currentIndex]);
+    final startIndex = _currentIndex;
+    bool wrappedOnce = false;
+
+    while (true) {
+      if (_currentIndex < _currentPlaylist!.length - 1) {
+        _currentIndex++;
+      } else {
+        if (_isPlaylistMode) {
+          _currentIndex = 0;
+          wrappedOnce = true;
+        } else if (_currentSong != null) {
+          final oldLength = _currentPlaylist!.length;
+          await _loadSuggestions(_currentSong!.id);
+          if (_currentPlaylist!.length > oldLength) {
+            _currentIndex++;
+          } else {
+            break;
+          }
+        } else {
+          break;
         }
       }
+
+      if (wrappedOnce && _currentIndex == startIndex) {
+        playbackErrorNotifier.value = 'Offline: No playable songs found.';
+        playbackErrorNotifier.value = null;
+        break;
+      }
+
+      final song = _currentPlaylist![_currentIndex];
+      final success = await _playSongInternal(song, showErrorMessage: false);
+      if (success) return;
     }
   }
 
@@ -351,16 +373,29 @@ class AudioPlayerHandler extends BaseAudioHandler
   Future<void> skipToPrevious() async {
     if (_currentPlaylist == null || _currentPlaylist!.isEmpty) return;
 
-    if (_currentIndex > 0) {
-      _currentIndex--;
-      await _playSongInternal(_currentPlaylist![_currentIndex]);
-    } else {
-      if (_isPlaylistMode) {
-        _currentIndex = _currentPlaylist!.length - 1;
-        await _playSongInternal(_currentPlaylist![_currentIndex]);
+    final startIndex = _currentIndex;
+    bool wrappedOnce = false;
+
+    while (true) {
+      if (_currentIndex > 0) {
+        _currentIndex--;
       } else {
-        await _player.seek(Duration.zero);
+        if (_isPlaylistMode) {
+          _currentIndex = _currentPlaylist!.length - 1;
+          wrappedOnce = true;
+        } else {
+          await _player.seek(Duration.zero);
+          return;
+        }
       }
+
+      if (wrappedOnce && _currentIndex == startIndex) {
+        break;
+      }
+
+      final song = _currentPlaylist![_currentIndex];
+      final success = await _playSongInternal(song, showErrorMessage: false);
+      if (success) return;
     }
   }
 

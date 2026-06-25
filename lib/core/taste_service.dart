@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 
 class TasteService {
@@ -111,17 +113,75 @@ class TasteService {
     return detected;
   }
 
-  Future<void> load() async {
-    clear();
+  Future<void> _loadLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'taste_${_uid ?? 'guest'}';
+      final jsonStr = prefs.getString(key);
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final Map<String, dynamic> data = jsonDecode(jsonStr);
+        _artistScores = Map<String, double>.from(
+          (data['artistScores'] as Map? ?? {}).map(
+            (k, v) => MapEntry(k as String, (v as num).toDouble()),
+          ),
+        );
+        _artistNames = Map<String, String>.from(
+          (data['artistNames'] as Map? ?? {}).map(
+            (k, v) => MapEntry(k as String, v as String),
+          ),
+        );
+        _languageScores = Map<String, double>.from(
+          (data['languageScores'] as Map? ?? {}).map(
+            (k, v) => MapEntry(k as String, (v as num).toDouble()),
+          ),
+        );
+        _moodScores = Map<String, double>.from(
+          (data['moodScores'] as Map? ?? {}).map(
+            (k, v) => MapEntry(k as String, (v as num).toDouble()),
+          ),
+        );
+        _recentlyPlayed = List<Map<String, dynamic>>.from(
+          (data['recentlyPlayed'] as List? ?? []).map(
+            (e) => Map<String, dynamic>.from(e as Map),
+          ),
+        );
+        _totalPlays = data['totalPlays'] as int? ?? 0;
+        final lastDecayStr = data['lastDecayDate'] as String?;
+        if (lastDecayStr != null) {
+          _lastDecayDate = DateTime.tryParse(lastDecayStr);
+        }
+      }
+    } catch (e) {
+      debugPrint('TasteService._loadLocal error: $e');
+    }
+  }
+
+  Future<void> _saveLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'taste_${_uid ?? 'guest'}';
+      final data = {
+        'artistScores': _artistScores,
+        'artistNames': _artistNames,
+        'languageScores': _languageScores,
+        'moodScores': _moodScores,
+        'recentlyPlayed': _recentlyPlayed,
+        'totalPlays': _totalPlays,
+        'lastDecayDate': (_lastDecayDate ?? DateTime.now()).toIso8601String(),
+      };
+      await prefs.setString(key, jsonEncode(data));
+    } catch (e) {
+      debugPrint('TasteService._saveLocal error: $e');
+    }
+  }
+
+  Future<void> _fetchServer() async {
     final doc = _tasteDoc;
     if (doc == null) return;
-
     try {
-      final snap = await doc.get();
+      final snap = await doc.get().timeout(const Duration(seconds: 4));
       if (!snap.exists) return;
-
       final data = snap.data() as Map<String, dynamic>? ?? {};
-
       _artistScores = Map<String, double>.from(
         (data['artistScores'] as Map? ?? {}).map(
           (k, v) => MapEntry(k as String, (v as num).toDouble()),
@@ -148,20 +208,26 @@ class TasteService {
         ),
       );
       _totalPlays = data['totalPlays'] as int? ?? 0;
-
       final lastDecayStr = data['lastDecayDate'] as String?;
       if (lastDecayStr != null) {
         _lastDecayDate = DateTime.tryParse(lastDecayStr);
       }
-
       final oldDecayDate = _lastDecayDate;
       _applyDecay();
       if (oldDecayDate != null && _lastDecayDate != oldDecayDate) {
         await _save(immediate: true);
+      } else {
+        await _saveLocal();
       }
     } catch (e, s) {
-      debugPrint('TasteService.load error: $e\n$s');
+      debugPrint('TasteService._fetchServer error: $e\n$s');
     }
+  }
+
+  Future<void> load() async {
+    clear();
+    await _loadLocal();
+    _fetchServer();
   }
 
   void _applyDecay() {
@@ -412,6 +478,7 @@ class TasteService {
   }
 
   Future<void> _performSave() async {
+    await _saveLocal();
     final doc = _tasteDoc;
     if (doc == null) return;
 

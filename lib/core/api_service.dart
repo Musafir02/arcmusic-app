@@ -7,8 +7,10 @@ import '../models/song.dart';
 
 class ApiService {
   static const String _baseUrl = 'https://arcmusic-api.vercel.app';
+  static const String _spotifyApiUrl = 'https://arcmusic-spotify.vercel.app';
   static const int _lyricsCacheMaxSize = 50;
   static const Duration _httpTimeout = Duration(seconds: 10);
+  static const Duration _spotifyTimeout = Duration(seconds: 30);
 
   static final LinkedHashMap<String, LyricsResult> _lyricsCache =
       LinkedHashMap();
@@ -63,6 +65,137 @@ class ApiService {
       debugPrint('getSongSuggestions error: $e\n$s');
     }
     return [];
+  }
+
+  Future<SpotifyPlaylistResult?> fetchSpotifyPlaylist(String spotifyUrl) async {
+    final uri = Uri.parse(
+        '$_spotifyApiUrl/api/playlist?url=${Uri.encodeComponent(spotifyUrl)}');
+    try {
+      final response = await http.get(uri).timeout(_spotifyTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final tracks = (data['tracks'] as List? ?? [])
+            .whereType<Map>()
+            .map((t) => SpotifyTrack(
+                  name: t['name'] as String? ?? '',
+                  artists: List<String>.from(t['artists'] as List? ?? []),
+                  durationMs: (t['duration_ms'] as num?)?.toInt() ?? 0,
+                  album: t['album'] as String? ?? '',
+                ))
+            .where((t) => t.name.isNotEmpty)
+            .toList();
+        return SpotifyPlaylistResult(
+          name: data['name'] as String? ?? 'Spotify Import',
+          owner: data['owner'] as String? ?? '',
+          tracks: tracks,
+        );
+      }
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'HTTP ${response.statusCode}');
+    } catch (e, s) {
+      debugPrint('fetchSpotifyPlaylist error: $e\n$s');
+      rethrow;
+    }
+  }
+
+  Future<Song?> matchSpotifyTrack(SpotifyTrack track) async {
+    final targetSecs = track.durationMs / 1000.0;
+    final cleanName = _cleanTitle(track.name);
+    final primaryArtist =
+        track.artists.isNotEmpty ? track.artists.first : '';
+
+    final queries = <String>[
+      '${track.name} $primaryArtist'.trim(),
+      '$cleanName $primaryArtist'.trim(),
+      cleanName,
+      track.name,
+    ].where((q) => q.isNotEmpty).toList();
+
+    final seen = <String>{};
+    final candidates = <Song>[];
+
+    for (final query in queries) {
+      if (!seen.add(query)) continue;
+      try {
+        final results = await searchSongs(query, limit: 8);
+        for (final s in results) {
+          if (!candidates.any((c) => c.id == s.id)) candidates.add(s);
+        }
+      } catch (_) {}
+      if (candidates.length >= 15) break;
+    }
+
+    Song? best;
+    double bestScore = double.negativeInfinity;
+
+    for (final song in candidates) {
+      final songClean = _cleanTitle(song.name.toLowerCase());
+      final trackClean = cleanName.toLowerCase();
+
+      final nameSim = _stringSimilarity(songClean, trackClean);
+      if (nameSim < 0.38) continue;
+
+      final durDiff =
+          targetSecs > 0 ? (song.duration - targetSecs).abs() : 0.0;
+      final durOk = targetSecs == 0 || durDiff <= 30;
+      if (!durOk && nameSim < 0.82) continue;
+
+      final artistBonus = track.artists.any((a) => song.artistNames
+                  .toLowerCase()
+                  .contains(a.toLowerCase().split(' ').first) &&
+              a.isNotEmpty)
+          ? 1.5
+          : 0.0;
+
+      final durPenalty = targetSecs > 0 ? (durDiff * 0.08).clamp(0.0, 3.0) : 0.0;
+      final score = nameSim * 10 + artistBonus - durPenalty;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = song;
+      }
+    }
+
+    return best;
+  }
+
+  String _cleanTitle(String title) {
+    var t = title;
+    t = t.replaceAll(RegExp(r'\s*\(from\s+"[^"]*"\)', caseSensitive: false), '');
+    t = t.replaceAll(RegExp(r'\s*\(from\s+[^)]+\)', caseSensitive: false), '');
+    t = t.replaceAll(RegExp(r'\s*-\s*(slowed|reverb|lofi|lo-fi|remix|unplugged|reprise|acoustic|male|female|version|cover|remastered|extended|edit|feat\.?.*|ft\.?.*)$', caseSensitive: false), '');
+    t = t.replaceAll(RegExp(r'\s*\((slowed|reverb|lofi|lo-fi|remix|unplugged|reprise|acoustic|male|female|version|cover|remastered|extended|edit)[^)]*\)', caseSensitive: false), '');
+    t = t.replaceAll(RegExp(r'\s*\(feat\.?[^)]*\)', caseSensitive: false), '');
+    t = t.trim();
+    return t.isEmpty ? title : t;
+  }
+
+  double _stringSimilarity(String a, String b) {
+    if (a == b) return 1.0;
+    if (a.isEmpty || b.isEmpty) return 0.0;
+
+    final aClean = a.replaceAll(RegExp(r'[^\w\s]'), '').trim();
+    final bClean = b.replaceAll(RegExp(r'[^\w\s]'), '').trim();
+
+    if (aClean == bClean) return 1.0;
+
+    if (aClean.contains(bClean) || bClean.contains(aClean)) {
+      final longer = aClean.length > bClean.length ? aClean : bClean;
+      final shorter = aClean.length <= bClean.length ? aClean : bClean;
+      return shorter.length / longer.length * 0.95;
+    }
+
+    final aWords = aClean.split(RegExp(r'\s+')).where((w) => w.length > 1).toSet();
+    final bWords = bClean.split(RegExp(r'\s+')).where((w) => w.length > 1).toSet();
+    if (aWords.isEmpty || bWords.isEmpty) return 0.0;
+
+    final intersection = aWords.intersection(bWords).length;
+    final union = aWords.union(bWords).length;
+    final jaccard = union == 0 ? 0.0 : intersection / union;
+
+    final overlap =
+        intersection / (aWords.length < bWords.length ? aWords.length : bWords.length);
+    return (jaccard * 0.5 + overlap * 0.5);
   }
 
   static Future<LyricsResult?> _getLocalLyrics(String songId) async {
@@ -238,4 +371,32 @@ class LyricsResult {
 
   bool get isEmpty => syncedLrc == null && plainText == null;
   bool get hasSynced => syncedLrc != null && syncedLrc!.isNotEmpty;
+}
+
+class SpotifyTrack {
+  final String name;
+  final List<String> artists;
+  final int durationMs;
+  final String album;
+
+  const SpotifyTrack({
+    required this.name,
+    required this.artists,
+    required this.durationMs,
+    required this.album,
+  });
+
+  String get primaryArtist => artists.isNotEmpty ? artists.first : '';
+}
+
+class SpotifyPlaylistResult {
+  final String name;
+  final String owner;
+  final List<SpotifyTrack> tracks;
+
+  const SpotifyPlaylistResult({
+    required this.name,
+    required this.owner,
+    required this.tracks,
+  });
 }

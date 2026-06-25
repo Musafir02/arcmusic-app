@@ -85,6 +85,44 @@ class Song {
     );
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'year': year,
+      'duration': duration,
+      'playCount': playCount,
+      'language': language,
+      'albumName': albumName,
+      'albumId': albumId,
+      'artistNames': artistNames,
+      'artistIds': artistIds,
+      'imageSmall': imageSmall,
+      'imageMedium': imageMedium,
+      'imageLarge': imageLarge,
+      'downloadUrl': downloadUrl,
+    };
+  }
+
+  factory Song.fromMap(Map<String, dynamic> d) {
+    return Song(
+      id: d['id'] as String? ?? '',
+      name: d['name'] as String? ?? '',
+      year: d['year'] as String? ?? '',
+      duration: d['duration'] as int? ?? 0,
+      playCount: d['playCount'] as int? ?? 0,
+      language: d['language'] as String? ?? '',
+      albumName: d['albumName'] as String? ?? '',
+      albumId: d['albumId'] as String? ?? '',
+      artistNames: d['artistNames'] as String? ?? '',
+      artistIds: List<String>.from(d['artistIds'] as List? ?? []),
+      imageSmall: d['imageSmall'] as String? ?? '',
+      imageMedium: d['imageMedium'] as String? ?? '',
+      imageLarge: d['imageLarge'] as String? ?? '',
+      downloadUrl: d['downloadUrl'] as String?,
+    );
+  }
+
   String get durationFormatted {
     final m = duration ~/ 60;
     final s = duration % 60;
