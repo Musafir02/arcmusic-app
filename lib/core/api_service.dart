@@ -71,6 +71,13 @@ class ApiService {
           'track_name': trackName,
           'artist_name': firstArtist,
         };
+        if (albumName != null && albumName.isNotEmpty) {
+          params['album_name'] = albumName;
+        }
+        if (durationSecs != null && durationSecs > 0) {
+          params['duration'] = durationSecs.toString();
+        }
+
         final lrcUri = Uri.https('lrclib.net', '/api/get', params);
         final lrcResponse = await http.get(lrcUri, headers: {
           'User-Agent': 'ArcMusic/1.0 (https://github.com/Musafir02/arcmusic)',
@@ -105,9 +112,12 @@ class ApiService {
 
       if (candidates.isNotEmpty) {
         Map<String, dynamic>? bestMatch;
+        int bestScore = -1;
         double bestDiff = double.infinity;
 
         for (final item in candidates) {
+          final synced = item['syncedLyrics'] as String?;
+          final plain = item['plainLyrics'] as String?;
           final dur = (item['duration'] as num?)?.toDouble() ?? 0.0;
           final diff = durationSecs != null ? (dur - durationSecs).abs() : 0.0;
 
@@ -115,9 +125,27 @@ class ApiService {
             continue;
           }
 
-          if (diff < bestDiff) {
+          int score = 0;
+          if (synced != null && synced.isNotEmpty) {
+            score += 2;
+            if (_isRomanized(synced)) {
+              score += 1;
+            }
+          } else if (plain != null && plain.isNotEmpty) {
+            if (_isRomanized(plain)) {
+              score += 1;
+            }
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
             bestDiff = diff;
             bestMatch = item;
+          } else if (score == bestScore) {
+            if (diff < bestDiff) {
+              bestDiff = diff;
+              bestMatch = item;
+            }
           }
         }
 
@@ -138,6 +166,17 @@ class ApiService {
     }
 
     return LyricsResult();
+  }
+
+  bool _isRomanized(String text) {
+    for (final rune in text.runes) {
+      if ((rune >= 0x0900 && rune <= 0x097F) || 
+          (rune >= 0x0A00 && rune <= 0x0A7F) || 
+          (rune >= 0x0600 && rune <= 0x06FF)) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 
