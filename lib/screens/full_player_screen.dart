@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../core/api_service.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
@@ -79,6 +80,7 @@ class _PlayerBody extends StatefulWidget {
 
 class _PlayerBodyState extends State<_PlayerBody> {
   final PageController _pageController = PageController();
+  final ApiService _api = ApiService();
   int _currentPage = 0;
 
   LyricsResult? _lyricsResult;
@@ -109,7 +111,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
       _syncedLines = [];
     });
 
-    ApiService()
+    _api
         .getLyrics(
       widget.song.id,
       trackName: widget.song.name,
@@ -224,15 +226,28 @@ class _PlayerBodyState extends State<_PlayerBody> {
           borderRadius: BorderRadius.circular(20),
           child: AspectRatio(
             aspectRatio: 1,
-            child: Image.network(
-              widget.song.imageLarge,
+            child: CachedNetworkImage(
+              imageUrl: widget.song.imageLarge,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorWidget: (_, __, ___) => Container(
                 color: AppTheme.surface,
                 child: const Icon(
                   Icons.music_note_rounded,
                   color: AppTheme.accent,
                   size: 80,
+                ),
+              ),
+              placeholder: (_, __) => Container(
+                color: AppTheme.surface,
+                child: const Center(
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: AppTheme.accent,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -294,7 +309,44 @@ class _PlayerBodyState extends State<_PlayerBody> {
       return _SyncedLyricsView(lines: _syncedLines);
     }
 
-    return const SizedBox.shrink();
+    if (_lyricsResult!.plainText != null &&
+        _lyricsResult!.plainText!.isNotEmpty) {
+      return SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        child: Text(
+          _lyricsResult!.plainText!,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 15,
+            color: AppTheme.textSecondary.withValues(alpha: 0.85),
+            height: 1.8,
+          ),
+        ),
+      );
+    }
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.lyrics_outlined,
+            color: AppTheme.textSecondary.withValues(alpha: 0.4),
+            size: 56,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Lyrics not available',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPageIndicator() {
@@ -506,7 +558,6 @@ class _SyncedLyricsViewState extends State<_SyncedLyricsView> {
   int _activeIndex = -1;
   bool _userScrolling = false;
   Timer? _scrollResetTimer;
-  double _viewportHeight = 400.0;
 
   @override
   void initState() {
@@ -515,11 +566,17 @@ class _SyncedLyricsViewState extends State<_SyncedLyricsView> {
   }
 
   void _onPosition(Duration pos) {
+    int lo = 0;
+    int hi = widget.lines.length - 1;
     int newIndex = -1;
-    for (int i = widget.lines.length - 1; i >= 0; i--) {
-      if (pos >= widget.lines[i].timestamp) {
-        newIndex = i;
-        break;
+
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (widget.lines[mid].timestamp <= pos) {
+        newIndex = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
       }
     }
 
@@ -572,11 +629,11 @@ class _SyncedLyricsViewState extends State<_SyncedLyricsView> {
         },
         child: LayoutBuilder(
           builder: (context, constraints) {
-            _viewportHeight = constraints.maxHeight;
+            final viewportHeight = constraints.maxHeight;
             return ListView.builder(
               controller: _scrollController,
               padding: EdgeInsets.symmetric(
-                vertical: _viewportHeight / 2 - 24.0,
+                vertical: viewportHeight / 2 - 24.0,
                 horizontal: 24,
               ),
               itemCount: widget.lines.length,

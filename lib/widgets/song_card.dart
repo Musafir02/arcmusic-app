@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/song.dart';
 import '../core/theme.dart';
 
@@ -20,14 +21,14 @@ class SongCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                song.imageLarge.isNotEmpty
+              child: CachedNetworkImage(
+                imageUrl: song.imageLarge.isNotEmpty
                     ? song.imageLarge
                     : song.imageMedium,
                 width: 150,
                 height: 150,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorWidget: (_, __, ___) => Container(
                   width: 150,
                   height: 150,
                   decoration: BoxDecoration(
@@ -40,27 +41,24 @@ class SongCard extends StatelessWidget {
                     size: 40,
                   ),
                 ),
-                loadingBuilder: (_, child, progress) {
-                  if (progress == null) return child;
-                  return Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      color: AppTheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.accent,
-                        ),
+                placeholder: (_, __) => Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.accent,
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 10),

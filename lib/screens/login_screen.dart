@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import '../core/auth_service.dart';
 import '../core/theme.dart';
 
@@ -149,6 +150,32 @@ class _LoginScreenState extends State<LoginScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message ?? 'Sign in failed'),
+            backgroundColor: AppTheme.surface,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Sign in failed. Please try again.'),
+            backgroundColor: AppTheme.surface,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Sign in failed. Please try again.'),
             backgroundColor: AppTheme.surface,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(

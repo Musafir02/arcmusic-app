@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/song.dart';
 
 class TasteService {
@@ -16,8 +19,7 @@ class TasteService {
   List<Map<String, dynamic>> _recentlyPlayed = [];
   int _totalPlays = 0;
   DateTime? _lastDecayDate;
-
-  Song? _lastPlayedSong;
+  Timer? _saveDebouncer;
 
   static const _moodKeywords = <String, List<String>>{
     'romantic': ['love', 'romance', 'pyaar', 'ishq', 'dil', 'heart', 'mohabbat', 'prem'],
@@ -32,14 +34,14 @@ class TasteService {
     'retro': ['old', 'classic', 'retro', '90s', '80s', '70s', 'purane', 'evergreen'],
   };
 
-  List<String> get topArtistIds {
+  List<String> get _topArtistIds {
     final sorted = _artistScores.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return sorted.take(10).map((e) => e.key).toList();
   }
 
   List<String> get topArtistNames {
-    return topArtistIds
+    return _topArtistIds
         .map((id) => _artistNames[id] ?? '')
         .where((n) => n.isNotEmpty)
         .toList();
@@ -60,7 +62,6 @@ class TasteService {
   List<Map<String, dynamic>> get recentlyPlayed => _recentlyPlayed;
   int get totalPlays => _totalPlays;
   bool get hasProfile => _totalPlays >= 1;
-  Song? get lastPlayedSong => _lastPlayedSong;
 
   Song? getLastSong() {
     if (_recentlyPlayed.isEmpty) return null;
@@ -111,6 +112,7 @@ class TasteService {
   }
 
   Future<void> load() async {
+    clear();
     final doc = _tasteDoc;
     if (doc == null) return;
 
@@ -152,8 +154,14 @@ class TasteService {
         _lastDecayDate = DateTime.tryParse(lastDecayStr);
       }
 
+      final oldDecayDate = _lastDecayDate;
       _applyDecay();
-    } catch (_) {}
+      if (oldDecayDate != null && _lastDecayDate != oldDecayDate) {
+        await _save(immediate: true);
+      }
+    } catch (e, s) {
+      debugPrint('TasteService.load error: $e\n$s');
+    }
   }
 
   void _applyDecay() {
@@ -163,9 +171,16 @@ class TasteService {
     }
 
     final daysSince = DateTime.now().difference(_lastDecayDate!).inDays;
-    if (daysSince <= 0) return;
 
-    final decayFactor = _pow(0.95, daysSince);
+    if (daysSince <= 0) {
+      if (daysSince < -1) {
+        debugPrint('TasteService: clock drift detected ($daysSince days), resetting decay date');
+        _lastDecayDate = DateTime.now();
+      }
+      return;
+    }
+
+    final decayFactor = pow(0.95, daysSince).toDouble();
 
     _artistScores.updateAll((_, v) => v * decayFactor);
     _languageScores.updateAll((_, v) => v * decayFactor);
@@ -178,17 +193,8 @@ class TasteService {
     _lastDecayDate = DateTime.now();
   }
 
-  double _pow(double base, int exp) {
-    double result = 1.0;
-    for (int i = 0; i < exp; i++) {
-      result *= base;
-    }
-    return result;
-  }
-
   Future<void> onSongPlayed(Song song) async {
     _totalPlays++;
-    _lastPlayedSong = song;
 
     for (final artistId in song.artistIds) {
       _artistScores[artistId] =
@@ -394,7 +400,18 @@ class TasteService {
     return queries;
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool immediate = false}) async {
+    _saveDebouncer?.cancel();
+    if (immediate) {
+      await _performSave();
+    } else {
+      _saveDebouncer = Timer(const Duration(seconds: 5), () {
+        _performSave();
+      });
+    }
+  }
+
+  Future<void> _performSave() async {
     final doc = _tasteDoc;
     if (doc == null) return;
 
@@ -409,6 +426,19 @@ class TasteService {
         'lastDecayDate': (_lastDecayDate ?? DateTime.now()).toIso8601String(),
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e, s) {
+      debugPrint('TasteService._performSave error: $e\n$s');
+    }
+  }
+
+  void clear() {
+    _saveDebouncer?.cancel();
+    _artistScores.clear();
+    _artistNames.clear();
+    _languageScores.clear();
+    _moodScores.clear();
+    _recentlyPlayed.clear();
+    _totalPlays = 0;
+    _lastDecayDate = null;
   }
 }

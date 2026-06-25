@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
 import '../models/song.dart';
@@ -87,14 +88,14 @@ class _MiniPlayerContent extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      song.imageMedium.isNotEmpty
+                    child: CachedNetworkImage(
+                      imageUrl: song.imageMedium.isNotEmpty
                           ? song.imageMedium
                           : song.imageSmall,
                       width: 44,
                       height: 44,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorWidget: (_, __, ___) => Container(
                         width: 44,
                         height: 44,
                         color: AppTheme.background,
@@ -102,6 +103,21 @@ class _MiniPlayerContent extends StatelessWidget {
                           Icons.music_note_rounded,
                           color: AppTheme.accent,
                           size: 20,
+                        ),
+                      ),
+                      placeholder: (_, __) => Container(
+                        width: 44,
+                        height: 44,
+                        color: AppTheme.background,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: AppTheme.accent,
+                            ),
+                          ),
                         ),
                       ),
                     ),

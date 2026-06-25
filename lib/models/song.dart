@@ -32,34 +32,55 @@ class Song {
   });
 
   factory Song.fromJson(Map<String, dynamic> json) {
-    final images = json['image'] as List? ?? [];
-    final artists = json['artists']?['primary'] as List? ?? [];
-    final artistNamesList =
-        artists.map((a) => a['name'] as String).toList();
-    final downloadUrls = json['downloadUrl'] as List? ?? [];
+    final imageRaw = json['image'];
+    final images = imageRaw is List ? imageRaw : const [];
+
+    final artistsRaw = json['artists']?['primary'];
+    final artists = artistsRaw is List ? artistsRaw : const [];
+
+    final artistNamesList = artists
+        .map((a) => (a is Map && a['name'] != null) ? a['name'].toString() : '')
+        .where((n) => n.isNotEmpty)
+        .toList();
+
+    final dlRaw = json['downloadUrl'];
+    final downloadUrls = dlRaw is List ? dlRaw : const [];
 
     String? bestDownload;
     for (final dl in downloadUrls.reversed) {
-      if (dl['url'] != null) {
-        bestDownload = dl['url'] as String;
+      if (dl is Map && dl['url'] != null) {
+        bestDownload = dl['url'].toString();
         break;
       }
     }
 
+    String getImageUrl(int index) {
+      if (index >= 0 && index < images.length) {
+        final item = images[index];
+        if (item is Map && item['url'] != null) {
+          return item['url'].toString();
+        }
+      }
+      return '';
+    }
+
     return Song(
-      id: json['id'] as String? ?? '',
-      name: _cleanHtml(json['name'] as String? ?? ''),
-      year: json['year'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      name: _cleanHtml(json['name']?.toString() ?? ''),
+      year: json['year']?.toString() ?? '',
       duration: json['duration'] as int? ?? 0,
       playCount: json['playCount'] as int? ?? 0,
-      language: json['language'] as String? ?? '',
-      albumName: _cleanHtml(json['album']?['name'] as String? ?? ''),
-      albumId: json['album']?['id'] as String? ?? '',
+      language: json['language']?.toString() ?? '',
+      albumName: _cleanHtml(json['album']?['name']?.toString() ?? ''),
+      albumId: json['album']?['id']?.toString() ?? '',
       artistNames: artistNamesList.join(', '),
-      artistIds: artists.map((a) => a['id'] as String).toList(),
-      imageSmall: images.isNotEmpty ? images[0]['url'] as String : '',
-      imageMedium: images.length > 1 ? images[1]['url'] as String : '',
-      imageLarge: images.length > 2 ? images[2]['url'] as String : '',
+      artistIds: artists
+          .map((a) => (a is Map && a['id'] != null) ? a['id'].toString() : '')
+          .where((id) => id.isNotEmpty)
+          .toList(),
+      imageSmall: getImageUrl(0),
+      imageMedium: getImageUrl(1),
+      imageLarge: getImageUrl(2),
       downloadUrl: bestDownload,
     );
   }

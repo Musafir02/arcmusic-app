@@ -5,7 +5,6 @@ import '../core/theme.dart';
 import '../models/song.dart';
 import '../widgets/song_tile.dart';
 import '../core/player_service.dart';
-import '../widgets/mini_player.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -66,6 +65,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _searchController.addListener(_onTextChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -74,10 +74,15 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchController.removeListener(_onTextChanged);
     _searchController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged() {
+    setState(() {});
   }
 
   void _onScroll() {
@@ -113,6 +118,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _performSearch(String query) async {
     final resolved = _resolveQuery(query);
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
     setState(() {
       _isLoading = true;
       _currentQuery = resolved;
@@ -137,14 +145,8 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _isLoadingMore = true);
     _currentPage++;
 
-    final uri = Uri.parse(
-      'https://ref-api-pink.vercel.app/api/search/songs'
-      '?query=${Uri.encodeComponent(_currentQuery)}'
-      '&page=$_currentPage&limit=20',
-    );
-
     try {
-      final response = await _api.searchSongsRaw(uri);
+      final response = await _api.searchSongs(_currentQuery, page: _currentPage, limit: 20);
       if (mounted) {
         setState(() {
           _results.addAll(response);
@@ -169,7 +171,6 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const MiniPlayer(),
     );
   }
 
@@ -222,6 +223,9 @@ class _SearchScreenState extends State<SearchScreen> {
                           onPressed: () {
                             _searchController.clear();
                             _onSearchChanged('');
+                            if (_scrollController.hasClients) {
+                              _scrollController.jumpTo(0);
+                            }
                           },
                           icon: const Icon(
                             Icons.close_rounded,

@@ -30,7 +30,7 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   Song? _currentSong;
   List<Song> _songQueue = [];
-  List<Song> _history = [];
+  final List<Song> _history = [];
   bool _isRepeat = false;
   bool _isLiked = false;
 
@@ -41,7 +41,6 @@ class AudioPlayerHandler extends BaseAudioHandler
   Song? get currentSong => _currentSong;
   bool get isRepeat => _isRepeat;
   bool get isLiked => _isLiked;
-  bool get hasSong => _currentSong != null;
 
   AudioPlayerHandler() {
     _player.playbackEventStream.listen(_broadcastState);
@@ -91,6 +90,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       if (_player.playing) pause();
     });
   }
+
   void _broadcastState(PlaybackEvent event) {
     final playing = _player.playing;
     playbackState.add(playbackState.value.copyWith(
@@ -123,15 +123,9 @@ class AudioPlayerHandler extends BaseAudioHandler
   Future<void> playSong(Song song, {List<Song>? playlist}) async {
     if (song.downloadUrl == null || song.downloadUrl!.isEmpty) return;
 
-    if (_currentSong != null) {
-      final playedSeconds = _songStartTime != null
-          ? DateTime.now().difference(_songStartTime!).inSeconds
-          : 0;
-      if (playedSeconds < 30 && playedSeconds > 0) {
-        _taste.onSongSkipped(_currentSong!);
-      }
-      _history.add(_currentSong!);
-    }
+    final oldSong = _currentSong;
+    final oldStartTime = _songStartTime;
+    final oldLiked = _isLiked;
 
     _currentSong = song;
     _songStartTime = DateTime.now();
@@ -156,17 +150,50 @@ class AudioPlayerHandler extends BaseAudioHandler
 
     try {
       await _player.setUrl(song.downloadUrl!);
-      _player.play();
-      _taste.onSongPlayed(song);
-    } catch (e) {
-      debugPrint('Playback error: $e');
-    }
+      await _player.play();
 
-    _loadSuggestions(song.id);
+      if (oldSong != null) {
+        final playedSeconds = oldStartTime != null
+            ? DateTime.now().difference(oldStartTime).inSeconds
+            : 0;
+        if (playedSeconds < 30 && playedSeconds > 0) {
+          _taste.onSongSkipped(oldSong);
+        }
+        _history.add(oldSong);
+      }
+
+      _taste.onSongPlayed(song);
+      _loadSuggestions(song.id);
+    } catch (e, s) {
+      debugPrint('Playback error: $e\n$s');
+      _currentSong = oldSong;
+      _songStartTime = oldStartTime;
+      _isLiked = oldLiked;
+      currentSongNotifier.value = oldSong;
+      isLikedNotifier.value = oldLiked;
+      if (oldSong != null) {
+        final oldArt = oldSong.imageLarge.isNotEmpty
+            ? Uri.parse(oldSong.imageLarge)
+            : (oldSong.imageMedium.isNotEmpty
+                ? Uri.parse(oldSong.imageMedium)
+                : null);
+        mediaItem.add(MediaItem(
+          id: oldSong.id,
+          title: oldSong.name,
+          artist: oldSong.artistNames,
+          album: oldSong.albumName,
+          duration: Duration(seconds: oldSong.duration),
+          artUri: oldArt,
+        ));
+      } else {
+        mediaItem.add(null);
+      }
+    }
   }
 
   void restoreSong(Song song) {
     _currentSong = song;
+    _songStartTime = DateTime.now();
     currentSongNotifier.value = song;
     isLikedNotifier.value = false;
     _isLiked = false;
@@ -185,6 +212,12 @@ class AudioPlayerHandler extends BaseAudioHandler
       duration: Duration(seconds: song.duration),
       artUri: artUri,
     ));
+
+    if (song.downloadUrl != null && song.downloadUrl!.isNotEmpty) {
+      _player.setUrl(song.downloadUrl!).catchError((e) {
+        debugPrint('restoreSong preload error: $e');
+      });
+    }
   }
 
   Future<void> _loadSuggestions(String songId) async {
@@ -192,7 +225,9 @@ class AudioPlayerHandler extends BaseAudioHandler
       final suggestions = await _api.getSongSuggestions(songId, limit: 20);
       final valid = suggestions.where((s) => s.downloadUrl != null).toList();
       _songQueue = _taste.rankSuggestions(valid);
-    } catch (_) {}
+    } catch (e, s) {
+      debugPrint('_loadSuggestions error: $e\n$s');
+    }
   }
 
   @override
@@ -224,14 +259,24 @@ class AudioPlayerHandler extends BaseAudioHandler
       await _player.seek(Duration.zero);
       return;
     }
-    if (_history.isNotEmpty) {
+
+    final skipped = <Song>[];
+    while (_history.isNotEmpty) {
       final prev = _history.removeLast();
-      if (_currentSong != null) _songQueue.insert(0, _currentSong!);
-      _currentSong = null;
-      await playSong(prev);
-    } else {
-      await _player.seek(Duration.zero);
+      if (prev.downloadUrl != null && prev.downloadUrl!.isNotEmpty) {
+        if (_currentSong != null) _songQueue.insert(0, _currentSong!);
+        await playSong(prev);
+        return;
+      }
+      skipped.add(prev);
     }
+
+    if (skipped.isNotEmpty) {
+      debugPrint(
+          'skipToPrevious: skipped ${skipped.length} unplayable history entries');
+    }
+
+    await _player.seek(Duration.zero);
   }
 
   void togglePlay() {
@@ -257,15 +302,27 @@ class AudioPlayerHandler extends BaseAudioHandler
   }
 
   Stream<Duration> get positionStream => _player.positionStream;
-  Stream<Duration?> get durationStream => _player.durationStream;
   Stream<bool> get playingStream => _player.playingStream;
   Duration get position => _player.position;
   Duration get duration => _player.duration ?? Duration.zero;
-  bool get isPlaying => _player.playing;
 
   String formatDuration(Duration d) {
     final m = d.inMinutes;
     final s = d.inSeconds % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  void clear() {
+    _player.stop();
+    _currentSong = null;
+    _songStartTime = null;
+    _songQueue.clear();
+    _history.clear();
+    _isRepeat = false;
+    _isLiked = false;
+    currentSongNotifier.value = null;
+    isRepeatNotifier.value = false;
+    isLikedNotifier.value = false;
+    mediaItem.add(null);
   }
 }

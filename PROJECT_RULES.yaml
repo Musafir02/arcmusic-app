@@ -11,7 +11,7 @@ Theme:
   rule: Only use background and accent colors. No other colors allowed in the design.
 
 API:
-  base_url: "https://ref-api-pink.vercel.app"
+  base_url: "https://arcmusic-api.vercel.app"
   endpoints:
     - GET /api/search?query=
     - GET /api/search/songs?query=&page=&limit=

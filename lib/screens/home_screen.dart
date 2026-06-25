@@ -27,11 +27,19 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Song> _latestSongs = [];
   List<Song> _recentSongs = [];
   bool _isFirstLoad = true;
+  bool _hasError = false;
+  PackageInfo? _packageInfo;
 
   @override
   void initState() {
     super.initState();
+    _loadPackageInfo();
     _initAndFetch();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _packageInfo = info);
   }
 
   Future<void> _initAndFetch() async {
@@ -82,7 +90,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchAll() async {
-    _buildRecentSongs();
     final year = DateTime.now().year;
     final sections = <_SongSection>[];
     final futures = <Future<List<Song>>>[];
@@ -180,10 +187,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ..addAll(sections);
           _latestSongs = results.last;
           _isFirstLoad = false;
+          _hasError = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isFirstLoad = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isFirstLoad = false;
+          _hasError = true;
+        });
+      }
     }
   }
 
@@ -191,7 +204,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: _isFirstLoad ? _buildFirstLoad() : _buildContent(),
+        child: _isFirstLoad
+            ? _buildFirstLoad()
+            : _hasError
+                ? _buildError()
+                : _buildContent(),
       ),
     );
   }
@@ -205,6 +222,68 @@ class _HomeScreenState extends State<HomeScreen> {
             child: CircularProgressIndicator(
               color: AppTheme.accent,
               strokeWidth: 2.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildError() {
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.wifi_off_rounded,
+                  size: 52,
+                  color: AppTheme.textSecondary.withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Could not load music',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Check your connection and try again',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _isFirstLoad = true;
+                      _hasError = false;
+                    });
+                    _fetchAll();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accent,
+                    foregroundColor: AppTheme.background,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 12),
+                  ),
+                  child: const Text(
+                    'Retry',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -352,11 +431,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showProfileSheet(BuildContext context) async {
+  void _showProfileSheet(BuildContext context) {
     final user = _auth.currentUser;
-    final info = await PackageInfo.fromPlatform();
-
-    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -418,7 +494,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              'v${info.version} (${info.buildNumber})',
+              _packageInfo != null
+                  ? 'v${_packageInfo!.version} (${_packageInfo!.buildNumber})'
+                  : '',
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.textSecondary.withValues(alpha: 0.6),
@@ -429,9 +507,11 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  _auth.signOut();
+                  audioHandler.clear();
+                  _taste.clear();
+                  await _auth.signOut();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.accent.withValues(alpha: 0.12),

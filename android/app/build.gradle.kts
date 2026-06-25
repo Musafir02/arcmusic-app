@@ -30,10 +30,18 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+            if (keystorePropertiesFile.exists() && keystoreProperties.containsKey("keyAlias")) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            } else {
+                keyAlias = System.getenv("KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+                val storeFilePath = System.getenv("STORE_FILE") ?: ""
+                storeFile = if (storeFilePath.isNotEmpty()) file(storeFilePath) else file("dummy-keystore.jks")
+                storePassword = System.getenv("STORE_PASSWORD") ?: ""
+            }
         }
     }
 

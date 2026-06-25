@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/song.dart';
 import '../core/theme.dart';
 
@@ -39,14 +40,14 @@ class SongTile extends StatelessWidget {
             const SizedBox(width: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                song.imageMedium.isNotEmpty
+              child: CachedNetworkImage(
+                imageUrl: song.imageMedium.isNotEmpty
                     ? song.imageMedium
                     : song.imageSmall,
                 width: 52,
                 height: 52,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorWidget: (_, __, ___) => Container(
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
@@ -57,6 +58,24 @@ class SongTile extends StatelessWidget {
                     Icons.music_note_rounded,
                     color: AppTheme.accent,
                     size: 24,
+                  ),
+                ),
+                placeholder: (_, __) => Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: AppTheme.accent,
+                      ),
+                    ),
                   ),
                 ),
               ),
