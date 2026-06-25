@@ -84,18 +84,55 @@ class ApiService {
         }
       } catch (_) {}
 
+      try {
+        final searchUri = Uri.https('lrclib.net', '/api/search', {
+          'track_name': trackName,
+          'artist_name': firstArtist,
+        });
+        final searchResponse = await http.get(searchUri, headers: {
+          'User-Agent': 'ArcMusic/1.0 (https://github.com/Musafir02/arcmusic)',
+        });
+
+        if (searchResponse.statusCode == 200) {
+          final List<dynamic> results = jsonDecode(searchResponse.body);
+          for (final item in results) {
+            if (item is Map<String, dynamic>) {
+              candidates.add(item);
+            }
+          }
+        }
+      } catch (_) {}
+
       if (candidates.isNotEmpty) {
-        final bestMatch = candidates.first;
-        final synced = bestMatch['syncedLyrics'] as String?;
-        final plain = bestMatch['plainLyrics'] as String?;
-        if (synced != null && synced.isNotEmpty) {
-          final r = LyricsResult(syncedLrc: synced, plainText: plain);
-          _lyricsCache[songId] = r;
-          return r;
-        } else if (plain != null && plain.isNotEmpty) {
-          final r = LyricsResult(plainText: plain);
-          _lyricsCache[songId] = r;
-          return r;
+        Map<String, dynamic>? bestMatch;
+        double bestDiff = double.infinity;
+
+        for (final item in candidates) {
+          final dur = (item['duration'] as num?)?.toDouble() ?? 0.0;
+          final diff = durationSecs != null ? (dur - durationSecs).abs() : 0.0;
+
+          if (durationSecs != null && diff > 20) {
+            continue;
+          }
+
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestMatch = item;
+          }
+        }
+
+        if (bestMatch != null) {
+          final synced = bestMatch['syncedLyrics'] as String?;
+          final plain = bestMatch['plainLyrics'] as String?;
+          if (synced != null && synced.isNotEmpty) {
+            final r = LyricsResult(syncedLrc: synced, plainText: plain);
+            _lyricsCache[songId] = r;
+            return r;
+          } else if (plain != null && plain.isNotEmpty) {
+            final r = LyricsResult(plainText: plain);
+            _lyricsCache[songId] = r;
+            return r;
+          }
         }
       }
     }
