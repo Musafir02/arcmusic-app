@@ -5,6 +5,7 @@ import '../core/theme.dart';
 import '../models/song.dart';
 import '../widgets/song_tile.dart';
 import '../core/player_service.dart';
+import '../widgets/mini_player.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -171,6 +172,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: const MiniPlayer(),
     );
   }
 

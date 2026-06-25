@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/song.dart';
 import '../core/theme.dart';
+import 'song_tile.dart';
+import '../core/download_service.dart';
 
 class SongCard extends StatelessWidget {
   final Song song;
@@ -13,6 +15,13 @@ class SongCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (context) => SongContextSheet(song: song),
+        );
+      },
       child: Container(
         width: 150,
         margin: const EdgeInsets.only(right: 14),
@@ -62,15 +71,37 @@ class SongCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            Text(
-              song.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    song.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                ValueListenableBuilder<Set<String>>(
+                  valueListenable: DownloadService().downloadedSongIdsNotifier,
+                  builder: (context, downloadedIds, _) {
+                    if (downloadedIds.contains(song.id)) {
+                      return const Padding(
+                        padding: EdgeInsets.only(left: 4),
+                        child: Icon(
+                          Icons.check_circle_rounded,
+                          size: 13,
+                          color: Color(0xFFD97757),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 3),
             Text(

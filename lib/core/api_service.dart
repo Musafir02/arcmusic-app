@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 
 class ApiService {
@@ -64,6 +65,36 @@ class ApiService {
     return [];
   }
 
+  static Future<LyricsResult?> _getLocalLyrics(String songId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('lyrics_cache_$songId');
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final Map<String, dynamic> map = jsonDecode(jsonStr);
+        return LyricsResult(
+          syncedLrc: map['syncedLrc'] as String?,
+          plainText: map['plainText'] as String?,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading cached lyrics: $e');
+    }
+    return null;
+  }
+
+  static Future<void> _saveLocalLyrics(String songId, LyricsResult result) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final map = {
+        'syncedLrc': result.syncedLrc,
+        'plainText': result.plainText,
+      };
+      await prefs.setString('lyrics_cache_$songId', jsonEncode(map));
+    } catch (e) {
+      debugPrint('Error saving cached lyrics: $e');
+    }
+  }
+
   Future<LyricsResult> getLyrics(String songId,
       {String? trackName,
       String? artistName,
@@ -71,6 +102,12 @@ class ApiService {
       int? durationSecs}) async {
     final cached = _getCached(songId);
     if (cached != null) return cached;
+
+    final localCached = await _getLocalLyrics(songId);
+    if (localCached != null) {
+      _putCache(songId, localCached);
+      return localCached;
+    }
 
     if (trackName != null && artistName != null) {
       final firstArtist = artistName.split(',').first.trim();
@@ -166,10 +203,12 @@ class ApiService {
           if (synced != null && synced.isNotEmpty) {
             final r = LyricsResult(syncedLrc: synced, plainText: plain);
             _putCache(songId, r);
+            await _saveLocalLyrics(songId, r);
             return r;
           } else if (plain != null && plain.isNotEmpty) {
             final r = LyricsResult(plainText: plain);
             _putCache(songId, r);
+            await _saveLocalLyrics(songId, r);
             return r;
           }
         }

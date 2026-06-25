@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../core/api_service.dart';
 import '../core/auth_service.dart';
+import '../core/liked_service.dart';
+import '../core/playlist_service.dart';
 import '../core/theme.dart';
 import '../models/song.dart';
 import '../widgets/song_card.dart';
@@ -10,6 +12,8 @@ import '../widgets/section_header.dart';
 import '../core/player_service.dart';
 import '../core/taste_service.dart';
 import 'search_screen.dart';
+import 'liked_screen.dart';
+import 'playlists_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -217,6 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       children: [
         _buildHeader(),
+        _buildPillButtons(),
         const Expanded(
           child: Center(
             child: CircularProgressIndicator(
@@ -233,6 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       children: [
         _buildHeader(),
+        _buildPillButtons(),
         Expanded(
           child: Center(
             child: Column(
@@ -302,6 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         slivers: [
           SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(child: _buildPillButtons()),
           if (_recentSongs.isNotEmpty) ...[
             const SliverToBoxAdapter(
               child: SectionHeader(title: 'Recently Played'),
@@ -415,6 +422,48 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildPillButtons() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Row(
+        children: [
+          _PillButton(
+            icon: Icons.favorite_rounded,
+            label: 'Liked Songs',
+            onTap: () {
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const LikedScreen(),
+                  transitionsBuilder: (_, anim, __, child) =>
+                      FadeTransition(opacity: anim, child: child),
+                  transitionDuration: const Duration(milliseconds: 200),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+          _PillButton(
+            icon: Icons.queue_music_rounded,
+            label: 'Playlists',
+            filled: false,
+            onTap: () {
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const PlaylistsScreen(),
+                  transitionsBuilder: (_, anim, __, child) =>
+                      FadeTransition(opacity: anim, child: child),
+                  transitionDuration: const Duration(milliseconds: 200),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHorizontalList(List<Song> songs) {
     return SizedBox(
       height: 210,
@@ -511,6 +560,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pop(ctx);
                   audioHandler.clear();
                   _taste.clear();
+                  LikedService().clear();
+                  PlaylistService().clear();
                   await _auth.signOut();
                 },
                 style: ElevatedButton.styleFrom(
@@ -548,4 +599,59 @@ class _SongSection {
   final String title;
   final List<Song> songs;
   _SongSection(this.title, this.songs);
+}
+
+class _PillButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool filled;
+  final VoidCallback onTap;
+
+  const _PillButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.filled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: filled ? AppTheme.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(50),
+          border: filled
+              ? null
+              : Border.all(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.35),
+                  width: 1.5,
+                ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: filled ? AppTheme.background : AppTheme.accent,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: filled ? AppTheme.background : AppTheme.textSecondary,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

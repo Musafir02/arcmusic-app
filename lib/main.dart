@@ -4,6 +4,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme.dart';
 import 'core/player_service.dart';
+import 'core/liked_service.dart';
+import 'core/playlist_service.dart';
+import 'core/download_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_shell.dart';
 
@@ -11,6 +14,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await initAudioService();
+  await DownloadService().load();
+  await LikedService().load();
+  await PlaylistService().load();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -61,8 +67,15 @@ class _ArcMusicAppState extends State<ArcMusicApp>
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  String? _lastUid;
 
   @override
   Widget build(BuildContext context) {
@@ -80,10 +93,17 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData) {
+        final user = snapshot.data;
+        if (user != null) {
+          if (_lastUid != user.uid) {
+            _lastUid = user.uid;
+            LikedService().load();
+            PlaylistService().load();
+          }
           return const AppShell();
         }
 
+        _lastUid = null;
         return const LoginScreen();
       },
     );

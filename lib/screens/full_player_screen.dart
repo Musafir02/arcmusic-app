@@ -5,6 +5,7 @@ import '../core/api_service.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
 import '../models/song.dart';
+import 'playlist_song_picker.dart';
 
 class FullPlayerScreen extends StatelessWidget {
   const FullPlayerScreen({super.key});
@@ -198,10 +199,11 @@ class _PlayerBodyState extends State<_PlayerBody> {
 
   Widget _buildTopBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          const SizedBox(width: 48),
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
@@ -212,6 +214,13 @@ class _PlayerBodyState extends State<_PlayerBody> {
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.playlist_add_rounded, size: 26),
+            color: AppTheme.textPrimary,
+            onPressed: () async {
+              await showSongPicker(context, [widget.song]);
+            },
           ),
         ],
       ),
