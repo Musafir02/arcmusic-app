@@ -81,6 +81,15 @@ class _PlayerBodyState extends State<_PlayerBody> {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        _buildSongInfo(),
+        const SizedBox(height: 24),
+        _buildSeekBar(),
+        const SizedBox(height: 4),
+        _buildTimeRow(),
+        const SizedBox(height: 16),
+        _buildControls(),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -107,6 +116,179 @@ class _PlayerBodyState extends State<_PlayerBody> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSongInfo() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        children: [
+          Text(
+            widget.song.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.song.artistNames,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeekBar() {
+    return StreamBuilder<Duration>(
+      stream: audioHandler.positionStream,
+      builder: (context, snapshot) {
+        final pos = snapshot.data ?? Duration.zero;
+        final dur = audioHandler.duration;
+        final total = dur.inMilliseconds.toDouble();
+        final current =
+            pos.inMilliseconds.toDouble().clamp(0.0, total > 0 ? total : 1.0);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 4,
+              activeTrackColor: AppTheme.accent,
+              inactiveTrackColor: AppTheme.surface,
+              thumbColor: AppTheme.accent,
+              thumbShape:
+                  const RoundSliderThumbShape(enabledThumbRadius: 7),
+              overlayShape:
+                  const RoundSliderOverlayShape(overlayRadius: 16),
+              overlayColor: AppTheme.accent.withValues(alpha: 0.15),
+            ),
+            child: Slider(
+              value: current,
+              max: total > 0 ? total : 1.0,
+              onChanged: (value) {
+                audioHandler.seek(Duration(milliseconds: value.toInt()));
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTimeRow() {
+    return StreamBuilder<Duration>(
+      stream: audioHandler.positionStream,
+      builder: (context, snapshot) {
+        final pos = snapshot.data ?? Duration.zero;
+        final dur = audioHandler.duration;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                audioHandler.formatDuration(pos),
+                style: const TextStyle(
+                    fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              Text(
+                audioHandler.formatDuration(dur),
+                style: const TextStyle(
+                    fontSize: 12, color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildControls() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: audioHandler.isLikedNotifier,
+            builder: (_, liked, __) => GestureDetector(
+              onTap: audioHandler.toggleLike,
+              child: Icon(
+                liked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                color: liked ? AppTheme.accent : AppTheme.textSecondary,
+                size: 26,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: audioHandler.skipToPrevious,
+            child: const Icon(
+              Icons.skip_previous_rounded,
+              color: AppTheme.textPrimary,
+              size: 40,
+            ),
+          ),
+          StreamBuilder<bool>(
+            stream: audioHandler.playingStream,
+            builder: (_, snap) {
+              final playing = snap.data ?? false;
+              return GestureDetector(
+                onTap: audioHandler.togglePlay,
+                child: Container(
+                  width: 68,
+                  height: 68,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.accent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    playing
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: AppTheme.background,
+                    size: 36,
+                  ),
+                ),
+              );
+            },
+          ),
+          GestureDetector(
+            onTap: audioHandler.skipToNext,
+            child: const Icon(
+              Icons.skip_next_rounded,
+              color: AppTheme.textPrimary,
+              size: 40,
+            ),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: audioHandler.isRepeatNotifier,
+            builder: (_, repeat, __) => GestureDetector(
+              onTap: audioHandler.toggleRepeat,
+              child: Icon(
+                Icons.repeat_one_rounded,
+                color: repeat ? AppTheme.accent : AppTheme.textSecondary,
+                size: 26,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
