@@ -1,0 +1,12 @@
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.firebase.** { *; }
+-keep class io.flutter.** { *; }
+-keep class com.google.android.exoplayer2.** { *; }
+-keep class androidx.media3.** { *; }
+-keep class androidx.media.** { *; }
+-keep class com.ryanheise.audioservice.** { *; }
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.android.play.core.**
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**

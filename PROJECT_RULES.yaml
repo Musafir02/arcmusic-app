@@ -1,0 +1,81 @@
+Project: ArcMusic
+Type: Flutter Music Streaming App (Android)
+Package: com.arcmusic.arcmusic
+
+Theme:
+  background: "#0e0d0c" (Void Black)
+  accent: "#d97757" (Warm Terracotta)
+  text_primary: "#FFFFFF"
+  text_secondary: "#888888"
+  surface: "#1a1918"
+  rule: Only use background and accent colors. No other colors allowed in the design.
+
+API:
+  base_url: "https://ref-api-pink.vercel.app"
+  endpoints:
+    - GET /api/search?query=
+    - GET /api/search/songs?query=&page=&limit=
+    - GET /api/search/albums?query=&page=&limit=
+    - GET /api/search/artists?query=&page=&limit=
+    - GET /api/search/playlists?query=&page=&limit=
+    - GET /api/songs?ids=
+    - GET /api/songs/{id}
+    - GET /api/songs/{id}/suggestions?limit=
+    - GET /api/albums?id=
+    - GET /api/artists/{id}
+    - GET /api/artists/{id}/songs
+    - GET /api/artists/{id}/albums
+    - GET /api/playlists?id=
+
+Auth:
+  provider: Firebase Google Sign-In
+  rule: Login is mandatory. No screen accessible without authentication.
+
+Architecture:
+  pattern: Feature-based
+  state_management: setState (simple)
+
+Screens:
+  login:
+    file: lib/screens/login_screen.dart
+    features: Google Sign-In, animated entrance, mandatory auth gate
+  app_shell:
+    file: lib/screens/app_shell.dart
+    features: Wraps HomeScreen + persistent MiniPlayer
+  home:
+    file: lib/screens/home_screen.dart
+    features: Pull-to-refresh with randomized queries, horizontal song carousels, vertical latest list, profile bottom sheet with dynamic app version
+  search:
+    file: lib/screens/search_screen.dart
+    features: Live debounced search (400ms), mood-aware query mapping (30+ moods), infinite scroll pagination
+  full_player:
+    file: lib/screens/full_player_screen.dart
+    features: Album art, seek bar, play/pause/next/prev/repeat/like controls, swipe down to dismiss
+
+Core:
+  theme: lib/core/theme.dart
+  auth: lib/core/auth_service.dart
+  api: lib/core/api_service.dart
+  player: lib/core/player_service.dart (singleton, just_audio, audio_service)
+  taste: lib/core/taste_service.dart (singleton, Firestore, recommendation engine)
+
+Models:
+  song: lib/models/song.dart
+
+Widgets:
+  song_card: lib/widgets/song_card.dart (horizontal carousel item)
+  song_tile: lib/widgets/song_tile.dart (vertical list item)
+  section_header: lib/widgets/section_header.dart
+  mini_player: lib/widgets/mini_player.dart (persistent bottom bar with progress)
+
+Assets:
+  icons: assets/icon/
+  images: assets/images/
+
+Rules:
+  - No hardcoded values (years, versions, data)
+  - Use DateTime.now().year for year-based queries
+  - Use PackageInfo for app version
+  - All data from API, no mock/fake data
+  - Only use #0e0d0c and #d97757 colors
+  - Refresh should not blank the screen

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "534243676135",
+    "project_id": "arcmusic-4d9a1",
+    "storage_bucket": "arcmusic-4d9a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:534243676135:android:df546eedb87b853d733742",
+        "android_client_info": {
+          "package_name": "com.arcmusic.arcmusic"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "534243676135-97ekco1opic6so5n58rnkjk9sq46homj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.arcmusic.arcmusic",
+            "certificate_hash": "4a99d194689449462a6d3ca19d26b43478c91d90"
+          }
+        },
+        {
+          "client_id": "534243676135-algkuui584tm988v9qdmp94ecn9pa2u2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_KPaYLGlcyhHonBWtNdIjjUON9RQOvqY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "534243676135-algkuui584tm988v9qdmp94ecn9pa2u2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
