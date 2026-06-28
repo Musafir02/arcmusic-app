@@ -124,10 +124,12 @@ class UpdateService {
     }
   }
 
+  String _stripBuild(String v) => v.split('+').first;
+
   bool _isNewerVersion(String remote, String current) {
     try {
-      final r = remote.split('.').map(int.parse).toList();
-      final c = current.split('.').map(int.parse).toList();
+      final r = _stripBuild(remote).split('.').map(int.parse).toList();
+      final c = _stripBuild(current).split('.').map(int.parse).toList();
       final maxLen = r.length > c.length ? r.length : c.length;
       for (int i = 0; i < maxLen; i++) {
         final rv = i < r.length ? r[i] : 0;

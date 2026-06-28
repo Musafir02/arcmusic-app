@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../core/api_service.dart';
 import '../core/theme.dart';
 import '../core/config.dart';
@@ -49,6 +50,86 @@ class _HomeScreenState extends State<HomeScreen> {
       await Future.delayed(const Duration(milliseconds: 800));
       if (mounted) UpdateDialog.show(context, info);
     }
+  }
+
+  Future<void> _showProfileSheet(BuildContext context, User? user) async {
+    final info = await PackageInfo.fromPlatform();
+    if (!context.mounted) return;
+    final appVersion = info.version;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: AppTheme.background,
+              backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+              child: user?.photoURL == null ? const Icon(Icons.person_rounded, size: 40, color: AppTheme.accent) : null,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              user?.displayName ?? 'Listener',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              user?.email ?? 'No email',
+              style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'v$appVersion',
+                style: const TextStyle(fontSize: 12, color: AppTheme.accent, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await FirebaseAuth.instance.signOut();
+                },
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: const Text('Sign Out', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _restoreLastSong() {
@@ -135,27 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                       GestureDetector(
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: AppTheme.surface,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              title: const Text('Sign Out', style: TextStyle(color: AppTheme.textPrimary)),
-                              content: const Text('Are you sure you want to sign out?', style: TextStyle(color: AppTheme.textSecondary)),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary))),
-                                TextButton(
-                                  onPressed: () async {
-                                    Navigator.pop(context);
-                                    await FirebaseAuth.instance.signOut();
-                                  },
-                                  child: const Text('Sign Out', style: TextStyle(color: Colors.redAccent)),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                        onTap: () => _showProfileSheet(context, user),
                         child: CircleAvatar(
                           radius: 20,
                           backgroundColor: AppTheme.surface,

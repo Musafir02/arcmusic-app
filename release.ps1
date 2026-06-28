@@ -50,7 +50,7 @@ git add pubspec.yaml
 git commit -m "release: $tag"
 git tag "$tag"
 
-# Ensure we have a remote pointing to the release repo
+# Push tag to release repo
 $remoteName = "release-upstream"
 $existingRemote = git remote -v | Select-String "$releaseRepo"
 if (-not $existingRemote) {
@@ -58,12 +58,23 @@ if (-not $existingRemote) {
 } else {
     $remoteName = ($existingRemote -split '\s')[0]
 }
-$branch = "main"
-git push "$remoteName" $branch --tags
+git push "$remoteName" tag $tag
 
-# Find APK files
+# Rename ARM APKs (skip x86_64)
 $apkDir = "build\app\outputs\flutter-apk"
-$apks = Get-ChildItem -Path $apkDir -Filter "*-release.apk" | ForEach-Object { $_.FullName }
+$uploadApks = @()
+$archMap = @{
+    "arm64-v8a"  = "arcmusic-arm64-v8a.apk"
+    "armeabi-v7a" = "arcmusic-armeabi-v7a.apk"
+}
+foreach ($arch in $archMap.Keys) {
+    $src = Join-Path $apkDir "app-$arch-release.apk"
+    if (Test-Path $src) {
+        $dst = Join-Path $apkDir $archMap[$arch]
+        Copy-Item -Path $src -Destination $dst -Force
+        $uploadApks += $dst
+    }
+}
 
 Write-Host "Creating GitHub Release $tag ..." -ForegroundColor Cyan
 
@@ -78,7 +89,7 @@ $Changes
 - armeabi-v7a (older devices)
 "@
 
-$notes | gh release create "$tag" $apks --title "$tag" --notes - --repo "$releaseRepo"
+$notes | gh release create "$tag" $uploadApks --title "ArcMusic $tag" --notes - --repo "$releaseRepo"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Release $tag published successfully!" -ForegroundColor Green

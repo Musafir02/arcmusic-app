@@ -368,16 +368,16 @@ class AudioPlayerHandler extends BaseAudioHandler
     if (_currentPlaylist == null || _currentPlaylist!.isEmpty) return;
 
     final startIndex = _currentIndex;
-    bool wrappedOnce = false;
+    bool suggestionsLoaded = false;
 
     while (true) {
       if (_currentIndex < _currentPlaylist!.length - 1) {
         _currentIndex++;
       } else {
         if (_isPlaylistMode) {
-          _currentIndex = 0;
-          wrappedOnce = true;
-        } else if (_currentSong != null) {
+          break;
+        } else if (_currentSong != null && !suggestionsLoaded) {
+          suggestionsLoaded = true;
           final oldLength = _currentPlaylist!.length;
           final currentId = _currentSong!['id'] as String? ?? '';
           if (currentId.isNotEmpty) {
@@ -393,9 +393,7 @@ class AudioPlayerHandler extends BaseAudioHandler
         }
       }
 
-      if (wrappedOnce && _currentIndex == startIndex) {
-        playbackErrorNotifier.value = 'Offline: No playable songs found.';
-        playbackErrorNotifier.value = null;
+      if (_currentIndex == startIndex) {
         break;
       }
 
