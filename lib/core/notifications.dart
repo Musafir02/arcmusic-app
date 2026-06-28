@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'theme.dart';
 
@@ -38,6 +39,7 @@ class _NotificationBannerState extends State<NotificationBanner>
   late AnimationController _controller;
   late Animation<Offset> _slide;
   late Animation<double> _fade;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -56,9 +58,7 @@ class _NotificationBannerState extends State<NotificationBanner>
     _controller.forward();
 
     if (!widget.isError) {
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) _onDismiss();
-      });
+      _timer = Timer(const Duration(seconds: 3), _onDismiss);
     }
   }
 
@@ -72,6 +72,7 @@ class _NotificationBannerState extends State<NotificationBanner>
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }

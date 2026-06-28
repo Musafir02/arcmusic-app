@@ -97,7 +97,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
 
           if (textLines.isNotEmpty && duration > 0) {
             final totalMs = duration * 1000;
-            final perLine = totalMs / (textLines.isNotEmpty ? textLines.length : 1);
+            final perLine = totalMs / textLines.length;
             for (int i = 0; i < textLines.length; i++) {
               lines.add(LrcLine(Duration(milliseconds: (perLine * i).round()), textLines[i].trim()));
             }
@@ -109,6 +109,11 @@ class _PlayerBodyState extends State<_PlayerBody> {
           _lyricsLoading = false;
           _syncedLines = lines;
         });
+      }
+    }).catchError((e) {
+      debugPrint('getLyrics error: $e');
+      if (mounted) {
+        setState(() => _lyricsLoading = false);
       }
     });
   }

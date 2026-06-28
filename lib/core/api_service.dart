@@ -206,7 +206,9 @@ class ApiService {
         for (final s in results) {
           if (!candidates.any((c) => c.id == s.id)) candidates.add(s);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('matchSpotifyTrack search error: $e');
+      }
       if (candidates.length >= 15) break;
     }
 
@@ -356,7 +358,9 @@ class ApiService {
             candidates.add(lrcData);
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('getLyrics direct lookup error: $e');
+      }
 
       try {
         final searchUri = Uri.https('lrclib.net', '/api/search', {
@@ -376,7 +380,9 @@ class ApiService {
             }
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('getLyrics search error: $e');
+      }
 
       if (candidates.isNotEmpty) {
         Map<String, dynamic>? bestMatch;

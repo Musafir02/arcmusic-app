@@ -52,7 +52,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     _player.playbackEventStream.listen(_broadcastState);
     _initAudioSession();
 
-    _player.processingStateStream.listen((state) {
+    _player.processingStateStream.listen((state) async {
       if (state == ProcessingState.completed) {
         if (_currentSong != null) {
           _taste.onSongCompleted(_currentSong!);
@@ -61,7 +61,9 @@ class AudioPlayerHandler extends BaseAudioHandler
           _player.seek(Duration.zero);
           _player.play();
         } else {
-          skipToNext();
+          await skipToNext().catchError((e) {
+            debugPrint('skipToNext error: $e');
+          });
         }
       }
     });
@@ -158,7 +160,9 @@ class AudioPlayerHandler extends BaseAudioHandler
           downloadUrl = fresh.downloadUrl!;
           resolvedSong = fresh;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('_playSongInternal refresh error: $e');
+      }
     }
 
     if (downloadUrl.isEmpty) {
@@ -316,7 +320,9 @@ class AudioPlayerHandler extends BaseAudioHandler
 
     final downloadUrl = song.downloadUrl ?? '';
     if (downloadUrl.isNotEmpty) {
-      DownloadService().getDownloadedPath(id).then((localPath) {
+      final songId = id;
+      DownloadService().getDownloadedPath(songId).then((localPath) {
+        if (_currentSong?.id != songId) return;
         if (localPath != null) {
           _player.setAudioSource(AudioSource.file(localPath)).catchError((e) {
             debugPrint('restoreSong preload error: $e');
@@ -384,10 +390,11 @@ class AudioPlayerHandler extends BaseAudioHandler
       if (currentId.isEmpty) return;
       final oldLength = _currentPlaylist!.length;
       await _loadSuggestions(currentId);
-      if (_currentPlaylist!.length <= oldLength) return;
+      if (_currentPlaylist == null || _currentPlaylist!.length <= oldLength) return;
       _currentIndex = oldLength;
     }
 
+    if (_currentPlaylist == null) return;
     final song = _currentPlaylist![_currentIndex];
     await _playSongInternal(song);
   }

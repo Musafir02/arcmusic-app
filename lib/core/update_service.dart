@@ -1,5 +1,4 @@
-﻿import 'dart:async';
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -64,7 +63,7 @@ class UpdateService {
               'User-Agent': 'ArcMusic/1.0',
             },
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(AppConfig.httpTimeout);
 
       if (response.statusCode != 200) return;
 
@@ -175,6 +174,8 @@ class UpdateService {
         } else {
           throw Exception('Patch apply failed: ${result.message}');
         }
+      } else {
+        downloadStateNotifier.value = UpdateDownloadState.done;
       }
     } catch (e) {
       debugPrint('UpdateService download error: $e');

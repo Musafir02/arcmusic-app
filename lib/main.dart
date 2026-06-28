@@ -26,7 +26,6 @@ void main() async {
   }
   await FlutterPatcher.init();
   await DownloadService().load();
-  await UserDataService().load();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

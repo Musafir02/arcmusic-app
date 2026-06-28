@@ -73,25 +73,28 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         builder: (context, playlists, _) {
           final playlistIndex = playlists.indexWhere((p) => p['id'] == widget.playlistId);
           if (playlistIndex == -1) {
-            return Scaffold(
-              backgroundColor: AppTheme.background,
-              appBar: AppBar(
-                backgroundColor: AppTheme.background,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                  onPressed: () => Navigator.pop(context),
+            return Column(
+              children: [
+                AppBar(
+                  backgroundColor: AppTheme.background,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ),
-              ),
-              body: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.playlist_remove_rounded, size: 64, color: AppTheme.textSecondary),
-                    SizedBox(height: 16),
-                    Text('Playlist not found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
-                  ],
+                const Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.playlist_remove_rounded, size: 64, color: AppTheme.textSecondary),
+                        SizedBox(height: 16),
+                        Text('Playlist not found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             );
           }
 

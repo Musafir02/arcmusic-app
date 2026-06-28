@@ -167,14 +167,6 @@ class UserDataService {
     _debouncedLikedSave();
   }
 
-  Future<void> unlike(String songId) async {
-    _likedSongs.removeWhere((s) => s.id == songId);
-    _likedIds.remove(songId);
-    likedNotifier.value = List.unmodifiable(_likedSongs);
-    await _saveLikedLocal();
-    _debouncedLikedSave();
-  }
-
   void _debouncedLikedSave() {
     _likedSaveDebouncer?.cancel();
     _likedSaveDebouncer = Timer(const Duration(seconds: 2), _performLikedSave);

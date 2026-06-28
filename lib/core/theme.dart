@@ -11,10 +11,6 @@ class AppTheme {
   static const double radiusCard = 16.0;
   static const double radiusSheet = 28.0;
 
-  static const double padDefault = 16.0;
-  static const double spaceMedium = 12.0;
-  static const double spaceLarge = 20.0;
-
   static const double actionButtonHeight = 46.0;
 
   static final BoxShadow cardShadow = BoxShadow(

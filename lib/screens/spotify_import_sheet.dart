@@ -64,9 +64,18 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
 
     final api = ApiService();
 
-    SpotifyPlaylistResult result;
+    late SpotifyPlaylistResult result;
     try {
-      result = (await api.fetchSpotifyPlaylist(url))!;
+      final r = await api.fetchSpotifyPlaylist(url);
+      if (r == null) {
+        if (!mounted) return;
+        setState(() {
+          _step = ImportStep.instructions;
+          _errorMsg = 'Failed to fetch playlist. Check the URL and try again.';
+        });
+        return;
+      }
+      result = r;
     } catch (e) {
       if (!mounted) return;
       setState(() {

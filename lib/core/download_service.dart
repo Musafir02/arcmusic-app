@@ -156,67 +156,6 @@ class DownloadService {
     _runQueue();
   }
 
-  void cancelSong(String songId) {
-    final index = _queue.indexWhere((task) => task.song.id == songId);
-    if (index == -1) return;
-
-    final task = _queue[index];
-    if (task.status == DownloadStatus.downloading) {
-      task.status = DownloadStatus.paused;
-      _client?.close();
-      _client = http.Client();
-    }
-
-    _queue.removeAt(index);
-    _progressMap.remove(songId);
-    queueNotifier.value = List.unmodifiable(_queue);
-    _notifyProgress();
-    _notify();
-
-    if (_isRunning && _queue.isNotEmpty && !_isLooping) {
-      _runQueue();
-    }
-  }
-
-  Future<void> deleteSong(String songId) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/downloads/$songId.mp3');
-      if (await file.exists()) {
-        await file.delete();
-      }
-
-      _downloadedSongIds.remove(songId);
-      downloadedSongIdsNotifier.value = Set.unmodifiable(_downloadedSongIds);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(AppConfig.keyDownloadedSongIds, _downloadedSongIds.toList());
-
-      final jsonStr = prefs.getString(AppConfig.keyDownloadedSongsList);
-      if (jsonStr != null && jsonStr.isNotEmpty) {
-        final List list = jsonDecode(jsonStr);
-        list.removeWhere((e) => e['id'] == songId);
-        await prefs.setString(AppConfig.keyDownloadedSongsList, jsonEncode(list));
-      }
-
-      _progressMap.remove(songId);
-      _notifyProgress();
-      _notify();
-    } catch (e) {
-      debugPrint('Error deleting song: $e');
-    }
-  }
-
-  void clearQueue() {
-    _queue.removeWhere((t) => t.status == DownloadStatus.completed || t.status == DownloadStatus.failed);
-    queueNotifier.value = List.unmodifiable(_queue);
-    if (_queue.isEmpty) {
-      _activeBatchId = null;
-      activeBatchIdNotifier.value = null;
-    }
-    _notifyProgress();
-  }
-
   void cancelAll() {
     _isRunning = false;
     isRunningNotifier.value = false;

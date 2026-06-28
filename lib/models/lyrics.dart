@@ -14,12 +14,13 @@ class LrcLine {
   LrcLine(this.timestamp, this.text);
 }
 
+final _lrcRegex = RegExp(r'\[(\d{2}):(\d{2})(?:\.(\d+))?\]\s*(.*)');
+
 List<LrcLine> parseLrc(String lrc) {
   final lines = <LrcLine>[];
-  final regex = RegExp(r'\[(\d{2}):(\d{2})(?:\.(\d+))?\]\s*(.*)');
 
   for (final line in lrc.split('\n')) {
-    final match = regex.firstMatch(line.trim());
+    final match = _lrcRegex.firstMatch(line.trim());
     if (match != null) {
       final min = int.parse(match.group(1)!);
       final sec = int.parse(match.group(2)!);

@@ -77,7 +77,7 @@ class SongTile extends StatelessWidget {
             else
               ValueListenableBuilder<List<Song>>(
                 valueListenable: uds.likedNotifier,
-                builder: (context, liked, _) {
+                builder: (context, _, _) {
                   final likedActive = uds.isLiked(id);
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -208,7 +208,7 @@ class SongTile extends StatelessWidget {
             else
               ValueListenableBuilder<List<Song>>(
                 valueListenable: uds.likedNotifier,
-                builder: (context, liked, _) {
+                builder: (context, _, _) {
                   final activeLiked = uds.isLiked(id);
                   return IconButton(
                     icon: Icon(activeLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded),

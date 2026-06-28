@@ -50,7 +50,6 @@ class TasteService {
 
   List<Song> get recentlyPlayed => _recentlyPlayed;
   int get totalPlays => _totalPlays;
-  bool get hasProfile => _totalPlays >= 1;
 
   Song? getLastSong() {
     if (_recentlyPlayed.isEmpty) return null;
@@ -207,11 +206,6 @@ class TasteService {
     final scored = suggestions.map((s) => MapEntry(s, scoreSong(s))).toList();
     scored.sort((a, b) => b.value.compareTo(a.value));
     return scored.map((e) => e.key).toList();
-  }
-
-  List<String> getPersonalizedQueries() {
-    final artists = topArtistNames;
-    return [artists.isNotEmpty ? artists.first : 'pop hits'];
   }
 
   Future<void> _save({bool immediate = false}) async {

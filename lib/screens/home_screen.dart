@@ -168,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
     futures.add(_api.searchSongs('top hindi hits $year', limit: 10));
 
     try {
-      final results = await Future.wait(futures);
+      final results = await Future.wait(futures.map((f) => f.catchError((_) => <Song>[])));
       final newSections = <_SongSection>[];
       for (int i = 0; i < names.length; i++) {
         if (results[i].isNotEmpty) {
@@ -182,7 +182,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ..addAll(newSections);
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('_fetchHomeData error: $e');
+    }
 
     if (mounted) {
       setState(() => _isLoading = false);
