@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:io';
+import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../core/update_service.dart';
 
@@ -30,8 +31,7 @@ class UpdateDialog extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: 40,
-              height: 4,
+              width: 40, height: 4,
               decoration: BoxDecoration(
                 color: AppTheme.textSecondary.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
@@ -47,16 +47,19 @@ class UpdateDialog extends StatelessWidget {
                   color: AppTheme.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.system_update_rounded, color: AppTheme.accent, size: 26),
+                child: Icon(
+                  info.isPatch ? Icons.auto_fix_high_rounded : Icons.system_update_rounded,
+                  color: AppTheme.accent, size: 26,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Update Available',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                    Text(
+                      info.isPatch ? 'Quick Update' : 'Update Available',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -125,19 +128,37 @@ class UpdateDialog extends StatelessWidget {
               }
 
               if (state == UpdateDownloadState.done) {
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => UpdateService().downloadAndInstall(),
-                    icon: const Icon(Icons.install_mobile_rounded, size: 18),
-                    label: const Text('Install Now', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accent,
-                      foregroundColor: AppTheme.background,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                return Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_rounded, color: AppTheme.accent.withValues(alpha: 0.8), size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          info.isPatch ? 'Update applied! Restart app to use.' : 'Download complete.',
+                          style: const TextStyle(fontSize: 13, color: AppTheme.accent, fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ),
-                  ),
+                    if (info.isPatch) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => exit(0),
+                          icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                          label: const Text('Restart Now', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accent,
+                            foregroundColor: AppTheme.background,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 );
               }
 
@@ -167,8 +188,11 @@ class UpdateDialog extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => UpdateService().downloadAndInstall(),
-                  icon: const Icon(Icons.download_rounded, size: 18),
-                  label: const Text('Download & Install', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  icon: Icon(info.isPatch ? Icons.auto_fix_high_rounded : Icons.download_rounded, size: 18),
+                  label: Text(
+                    info.isPatch ? 'Download Update' : 'Download & Install',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.accent,
                     foregroundColor: AppTheme.background,

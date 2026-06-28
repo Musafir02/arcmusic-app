@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Changes
+    [string]$Changes,
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,10 +47,12 @@ if ($tagExists) {
 }
 
 # Confirm before committing
-$confirm = Read-Host "Commit and tag $tag? (y/N)"
-if ($confirm -ne "y" -and $confirm -ne "Y") {
-    Write-Host "Aborted." -ForegroundColor Yellow
-    exit 1
+if (-not $Force) {
+    $confirm = Read-Host "Commit and tag $tag? (y/N)"
+    if ($confirm -ne "y" -and $confirm -ne "Y") {
+        Write-Host "Aborted." -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # Commit and tag in local repo
@@ -85,9 +88,27 @@ foreach ($arch in $archMap.Keys) {
 
 Write-Host "Creating GitHub Release $tag ..." -ForegroundColor Cyan
 
+# Generate patch.zip for flutter_patcher OTA updates
+$patchDir = Join-Path $apkDir "patch_dist"
+Write-Host "Generating patch.zip ..." -ForegroundColor Cyan
+$versionCode = ($version -split '\+')[1]
+dart run flutter_patcher:pack `
+  --apk (Join-Path $apkDir "app-arm64-v8a-release.apk") `
+  --version "$version" `
+  --target-version-code $versionCode
+if ($LASTEXITCODE -eq 0) {
+    $patchZip = Join-Path $apkDir "patch.zip"
+    if (Test-Path "dist\patch.zip") {
+        Copy-Item -Path "dist\patch.zip" -Destination $patchZip -Force
+        Remove-Item -Recurse -Force "dist" -ErrorAction SilentlyContinue
+        $uploadApks += $patchZip
+        Write-Host "patch.zip generated: $( (Get-Item $patchZip).Length / 1KB ) KB" -ForegroundColor Green
+    }
+}
+
 # Create GitHub Release
 $notesFile = [System.IO.Path]::GetTempFileName()
-@"
+$notesText = @"
 ## $tag
 
 $Changes
@@ -95,7 +116,10 @@ $Changes
 **APKs:**
 - arm64-v8a (recommended for most modern devices)
 - armeabi-v7a (older devices)
-"@ | Set-Content -Path $notesFile -Encoding UTF8
+
+**OTA Patch:** patch.zip (auto-applied in-app, ~95% smaller than full APK)
+"@
+[System.IO.File]::WriteAllText($notesFile, $notesText)
 
 gh release create "$tag" $uploadApks --title "ArcMusic $tag" --notes-file "$notesFile" --repo "$releaseRepo"
 Remove-Item -LiteralPath $notesFile -Force

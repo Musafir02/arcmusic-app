@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_patcher/flutter_patcher.dart';
 import 'core/theme.dart';
 import 'core/player_service.dart';
 import 'core/user_data_service.dart';
@@ -22,6 +23,7 @@ void main() async {
     debugPrint('Audio init failed: $e');
     audioHandler = AudioPlayerHandler();
   }
+  await FlutterPatcher.init();
   await DownloadService().load();
   await UserDataService().load();
   SystemChrome.setSystemUIOverlayStyle(

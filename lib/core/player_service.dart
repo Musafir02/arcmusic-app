@@ -201,7 +201,20 @@ class AudioPlayerHandler extends BaseAudioHandler
       if (localPath != null) {
         await _player.setAudioSource(AudioSource.file(localPath));
       } else {
-        await _player.setUrl(downloadUrl);
+        // Try streaming with a fresh URL if the song's downloadUrl might be stale
+        try {
+          await _player.setUrl(downloadUrl);
+        } catch (_) {
+          final fresh = await _api.getSongDetails(id);
+          if (fresh != null && (fresh.downloadUrl ?? '').isNotEmpty &&
+              fresh.downloadUrl != downloadUrl) {
+            downloadUrl = fresh.downloadUrl!;
+            resolvedSong = fresh;
+            await _player.setUrl(downloadUrl);
+          } else {
+            rethrow;
+          }
+        }
       }
       await _player.play();
 
@@ -220,12 +233,8 @@ class AudioPlayerHandler extends BaseAudioHandler
     } catch (e, s) {
       debugPrint('Playback error: $e\n$s');
       if (showErrorMessage) {
-        final isDownloaded = DownloadService().isSongDownloaded(id);
-        if (!isDownloaded) {
-          _showError('Offline: This song is not downloaded.');
-        } else {
-          _showError('Failed to play downloaded song: $e');
-        }
+        final msg = e.toString().replaceAll('Exception: ', '');
+        _showError('Playback failed: $msg');
       }
       if (_currentSong?.id == id) {
         _currentSong = oldSong;
