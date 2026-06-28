@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/user_data_service.dart';
 import '../core/theme.dart';
+import '../core/notifications.dart';
 import 'playlist_detail_screen.dart';
 import 'spotify_import_sheet.dart';
 import '../widgets/mini_player.dart';
@@ -63,13 +64,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
       await UserDataService().createPlaylist(name);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error creating playlist: $e', style: const TextStyle(color: AppTheme.background, fontWeight: FontWeight.bold)),
-          backgroundColor: AppTheme.accent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppNotifications.show('Error creating playlist: $e');
     }
   }
 

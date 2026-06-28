@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import '../core/firebase_service.dart';
 import '../core/theme.dart';
+import '../core/notifications.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -134,58 +135,22 @@ class _LoginScreenState extends State<LoginScreen>
     try {
       final result = await _authService.signInWithGoogle();
       if (result == null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Sign in cancelled'),
-            backgroundColor: AppTheme.surface,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
+        AppNotifications.show('Sign in cancelled');
       }
     } on FirebaseAuthException catch (e) {
       debugPrint('Sign in FirebaseAuthException: ${e.message}');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message ?? 'Sign in failed'),
-            backgroundColor: AppTheme.surface,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
+        AppNotifications.showError(e.message ?? 'Sign in failed');
       }
     } on PlatformException catch (e) {
       debugPrint('Sign in PlatformException: ${e.message}');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message ?? 'Sign in failed. Please try again.'),
-            backgroundColor: AppTheme.surface,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
+        AppNotifications.showError(e.message ?? 'Sign in failed. Please try again.');
       }
     } catch (e) {
       debugPrint('Sign in error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Sign in failed. Please try again.'),
-            backgroundColor: AppTheme.surface,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
+        AppNotifications.showError('Sign in failed. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

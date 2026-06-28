@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/user_data_service.dart';
 import '../core/theme.dart';
+import '../core/notifications.dart';
 import '../models/song.dart';
 
 Future<void> showSongPicker(BuildContext context, List<Song> songs) async {
@@ -75,23 +76,11 @@ class _SongPickerSheetState extends State<_SongPickerSheet> {
       }
       if (mounted && context.mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Added to $name', style: const TextStyle(color: AppTheme.background, fontWeight: FontWeight.bold)),
-            backgroundColor: AppTheme.accent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppNotifications.show('Added to $name');
       }
     } catch (e) {
       if (mounted && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e', style: const TextStyle(color: AppTheme.background, fontWeight: FontWeight.bold)),
-            backgroundColor: AppTheme.accent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppNotifications.showError('Error: $e');
       }
     }
   }
@@ -197,13 +186,7 @@ class _SongPickerSheetState extends State<_SongPickerSheet> {
                         }
                         if (context.mounted) {
                           Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Added to ${playlist['name']}', style: const TextStyle(color: AppTheme.background, fontWeight: FontWeight.bold)),
-                              backgroundColor: AppTheme.accent,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                          AppNotifications.show('Added to ${playlist['name']}');
                         }
                       },
                     );

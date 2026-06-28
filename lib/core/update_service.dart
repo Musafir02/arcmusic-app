@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_patcher/flutter_patcher.dart';
 import 'config.dart';
+import 'notifications.dart';
 
 enum UpdateDownloadState { idle, downloading, done, failed }
 
@@ -170,6 +171,7 @@ class UpdateService {
         await file.delete();
         if (result.ok) {
           downloadStateNotifier.value = UpdateDownloadState.done;
+          AppNotifications.show('${info.changelog} — Update applied! Restart app.');
         } else {
           throw Exception('Patch apply failed: ${result.message}');
         }
