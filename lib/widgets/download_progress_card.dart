@@ -32,10 +32,10 @@ class DownloadProgressCard extends StatelessWidget {
                       margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0E0D0C),
+                        color: AppTheme.background,
                         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
                         border: Border.all(
-                          color: const Color(0xFFD97757).withValues(alpha: 0.2),
+                          color: AppTheme.accent.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Column(
@@ -70,7 +70,7 @@ class DownloadProgressCard extends StatelessWidget {
                               IconButton(
                                 icon: Icon(
                                   isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                  color: const Color(0xFFD97757),
+                                  color: AppTheme.accent,
                                 ),
                                 onPressed: () {
                                   if (isRunning) {
@@ -98,7 +98,7 @@ class DownloadProgressCard extends StatelessWidget {
                               value: overallProgress,
                               backgroundColor: AppTheme.surface,
                               valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFFD97757),
+                                AppTheme.accent,
                               ),
                               minHeight: 4,
                             ),

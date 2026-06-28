@@ -45,6 +45,13 @@ if ($tagExists) {
     if ($LASTEXITCODE -ne 0) { throw "Flutter build failed" }
 }
 
+# Confirm before committing
+$confirm = Read-Host "Commit and tag $tag? (y/N)"
+if ($confirm -ne "y" -and $confirm -ne "Y") {
+    Write-Host "Aborted." -ForegroundColor Yellow
+    exit 1
+}
+
 # Commit and tag in local repo
 git add pubspec.yaml
 git commit -m "release: $tag"
@@ -79,7 +86,8 @@ foreach ($arch in $archMap.Keys) {
 Write-Host "Creating GitHub Release $tag ..." -ForegroundColor Cyan
 
 # Create GitHub Release
-$notes = @"
+$notesFile = [System.IO.Path]::GetTempFileName()
+@"
 ## $tag
 
 $Changes
@@ -87,9 +95,10 @@ $Changes
 **APKs:**
 - arm64-v8a (recommended for most modern devices)
 - armeabi-v7a (older devices)
-"@
+"@ | Set-Content -Path $notesFile -Encoding UTF8
 
-$notes | gh release create "$tag" $uploadApks --title "ArcMusic $tag" --notes - --repo "$releaseRepo"
+gh release create "$tag" $uploadApks --title "ArcMusic $tag" --notes-file "$notesFile" --repo "$releaseRepo"
+Remove-Item -LiteralPath $notesFile -Force
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Release $tag published successfully!" -ForegroundColor Green

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/song.dart';
 import 'config.dart';
 
 class TasteService {
@@ -13,14 +14,14 @@ class TasteService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  List<Map<String, dynamic>> _recentlyPlayed = [];
+  List<Song> _recentlyPlayed = [];
   int _totalPlays = 0;
   Timer? _saveDebouncer;
 
   List<String> get topArtistNames {
     final artistCounts = <String, int>{};
     for (final data in _recentlyPlayed) {
-      final artistNamesStr = data['artist'] as String? ?? '';
+      final artistNamesStr = data.artist;
       final artists = artistNamesStr.split(', ');
       for (final artist in artists) {
         final cleanArtist = artist.trim();
@@ -47,11 +48,11 @@ class TasteService {
     return sorted.take(3).map((e) => e.key).toList();
   }
 
-  List<Map<String, dynamic>> get recentlyPlayed => _recentlyPlayed;
+  List<Song> get recentlyPlayed => _recentlyPlayed;
   int get totalPlays => _totalPlays;
   bool get hasProfile => _totalPlays >= 1;
 
-  Map<String, dynamic>? getLastSong() {
+  Song? getLastSong() {
     if (_recentlyPlayed.isEmpty) return null;
     return _recentlyPlayed.first;
   }
@@ -64,10 +65,10 @@ class TasteService {
     return _db.collection('users').doc(uid).collection('profile').doc('taste');
   }
 
-  List<String> _detectMoods(Map<String, dynamic> song) {
-    final name = song['name'] as String? ?? '';
-    final album = song['album'] as String? ?? '';
-    final artist = song['artist'] as String? ?? '';
+  List<String> _detectMoods(Song song) {
+    final name = song.name;
+    final album = song.album ?? '';
+    final artist = song.artist;
     final text = '$name $album $artist'.toLowerCase();
     final detected = <String>[];
     for (final entry in MoodConstants.keywords.entries) {
@@ -83,11 +84,9 @@ class TasteService {
 
   void _parseData(Map<String, dynamic> data) {
     _totalPlays = data['totalPlays'] as int? ?? 0;
-    _recentlyPlayed = List<Map<String, dynamic>>.from(
-      (data['recentlyPlayed'] as List? ?? []).map(
-        (e) => Map<String, dynamic>.from(e as Map),
-      ),
-    );
+    _recentlyPlayed = (data['recentlyPlayed'] as List? ?? [])
+        .map((e) => Song.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 
   Future<void> _loadLocal() async {
@@ -109,7 +108,7 @@ class TasteService {
       final prefs = await SharedPreferences.getInstance();
       final key = 'taste_${_uid ?? 'guest'}';
       final data = {
-        'recentlyPlayed': _recentlyPlayed,
+        'recentlyPlayed': _recentlyPlayed.map((s) => s.toJson()).toList(),
         'totalPlays': _totalPlays,
       };
       await prefs.setString(key, jsonEncode(data));
@@ -138,16 +137,17 @@ class TasteService {
     _fetchServer();
   }
 
-  Future<void> onSongPlayed(Map<String, dynamic> song) async {
-    _totalPlays++;
-    final id = song['id'] as String? ?? '';
+  Future<void> onSongPlayed(Song song) async {
+    final id = song.id;
     if (id.isEmpty) return;
+    _totalPlays++;
 
-    _recentlyPlayed.removeWhere((e) => e['id'] == id);
+    _recentlyPlayed.removeWhere((e) => e.id == id);
 
-    final item = Map<String, dynamic>.from(song);
-    item['timestamp'] = DateTime.now().toIso8601String();
-    item['completed'] = false;
+    final item = song.copyWith(
+      timestamp: DateTime.now().toIso8601String(),
+      completed: false,
+    );
 
     _recentlyPlayed.insert(0, item);
 
@@ -155,32 +155,28 @@ class TasteService {
       _recentlyPlayed = _recentlyPlayed.sublist(0, 50);
     }
 
-    await _save();
+    await _save(immediate: true);
   }
 
-  Future<void> onSongCompleted(Map<String, dynamic> song) async {
-    final id = song['id'] as String? ?? '';
+  Future<void> onSongCompleted(Song song) async {
+    final id = song.id;
     if (id.isEmpty) return;
 
     final idx = _recentlyPlayed.indexWhere(
-      (e) => e['id'] == id && e['completed'] == false,
+      (e) => e.id == id && e.completed == false,
     );
     if (idx >= 0) {
-      _recentlyPlayed[idx]['completed'] = true;
+      _recentlyPlayed[idx] = _recentlyPlayed[idx].copyWith(completed: true);
     }
     await _save();
   }
 
-  Future<void> onSongSkipped(Map<String, dynamic> song) async {}
-
-  Future<void> onSongLiked(Map<String, dynamic> song) async {}
-
-  double scoreSong(Map<String, dynamic> song) {
+  double scoreSong(Song song) {
     double score = 0;
     final topArtists = topArtistNames;
     final userMoods = topMoods;
 
-    final artist = song['artist'] as String? ?? '';
+    final artist = song.artist;
     final songArtists = artist.split(', ');
     for (final artistName in songArtists) {
       if (topArtists.contains(artistName.trim())) {
@@ -197,7 +193,7 @@ class TasteService {
     }
 
     final wasRecentlyPlayed = _recentlyPlayed.any(
-      (e) => e['id'] == song['id'],
+      (e) => e.id == song.id,
     );
     if (wasRecentlyPlayed) {
       score -= 8.0;
@@ -206,7 +202,7 @@ class TasteService {
     return score;
   }
 
-  List<Map<String, dynamic>> rankSuggestions(List<Map<String, dynamic>> suggestions) {
+  List<Song> rankSuggestions(List<Song> suggestions) {
     if (_totalPlays == 0) return suggestions;
     final scored = suggestions.map((s) => MapEntry(s, scoreSong(s))).toList();
     scored.sort((a, b) => b.value.compareTo(a.value));
@@ -236,7 +232,7 @@ class TasteService {
 
     try {
       await doc.set({
-        'recentlyPlayed': _recentlyPlayed,
+        'recentlyPlayed': _recentlyPlayed.map((s) => s.toJson()).toList(),
         'totalPlays': _totalPlays,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));

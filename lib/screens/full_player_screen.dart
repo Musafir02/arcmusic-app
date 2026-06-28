@@ -5,6 +5,8 @@ import '../core/api_service.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
 import 'playlist_song_picker.dart';
+import '../models/song.dart';
+import '../models/lyrics.dart';
 
 class FullPlayerScreen extends StatelessWidget {
   const FullPlayerScreen({super.key});
@@ -14,7 +16,7 @@ class FullPlayerScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: ValueListenableBuilder<Map<String, dynamic>?>(
+        child: ValueListenableBuilder<Song?>(
           valueListenable: audioHandler.currentSongNotifier,
           builder: (context, song, _) {
             if (song == null) {
@@ -31,7 +33,7 @@ class FullPlayerScreen extends StatelessWidget {
 }
 
 class _PlayerBody extends StatefulWidget {
-  final Map<String, dynamic> song;
+  final Song song;
   const _PlayerBody({required this.song});
 
   @override
@@ -57,13 +59,13 @@ class _PlayerBodyState extends State<_PlayerBody> {
   @override
   void didUpdateWidget(covariant _PlayerBody oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.song['id'] != widget.song['id']) {
+    if (oldWidget.song.id != widget.song.id) {
       _fetchLyrics();
     }
   }
 
   void _fetchLyrics() {
-    final id = widget.song['id'] as String? ?? '';
+    final id = widget.song.id;
     if (id.isEmpty) return;
     if (_cachedSongId == id && _lyricsResult != null) return;
     _cachedSongId = id;
@@ -73,10 +75,10 @@ class _PlayerBodyState extends State<_PlayerBody> {
       _syncedLines = [];
     });
 
-    final name = widget.song['name'] as String? ?? '';
-    final artist = widget.song['artist'] as String? ?? '';
-    final album = widget.song['album'] as String? ?? '';
-    final duration = (widget.song['duration'] as num?)?.toInt() ?? 0;
+    final name = widget.song.name;
+    final artist = widget.song.artist;
+    final album = widget.song.album ?? '';
+    final duration = widget.song.duration;
 
     _api.getLyrics(
       id,
@@ -93,9 +95,9 @@ class _PlayerBodyState extends State<_PlayerBody> {
         } else if (result.plainText != null && result.plainText!.isNotEmpty) {
           final textLines = result.plainText!.split('\n').where((l) => l.trim().isNotEmpty).toList();
 
-          if (textLines.isNotEmpty) {
+          if (textLines.isNotEmpty && duration > 0) {
             final totalMs = duration * 1000;
-            final perLine = totalMs / textLines.length;
+            final perLine = totalMs / (textLines.isNotEmpty ? textLines.length : 1);
             for (int i = 0; i < textLines.length; i++) {
               lines.add(LrcLine(Duration(milliseconds: (perLine * i).round()), textLines[i].trim()));
             }
@@ -182,8 +184,8 @@ class _PlayerBodyState extends State<_PlayerBody> {
   }
 
   Widget _buildArtworkPage() {
-    final imgLarge = widget.song['imageLarge'] as String? ?? '';
-    final imgMedium = widget.song['image'] as String? ?? '';
+    final imgLarge = widget.song.imageLarge ?? '';
+    final imgMedium = widget.song.image ?? '';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -296,7 +298,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
       child: Column(
         children: [
           Text(
-            widget.song['name'] as String? ?? '',
+            widget.song.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -304,7 +306,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
           ),
           const SizedBox(height: 8),
           Text(
-            widget.song['artist'] as String? ?? '',
+            widget.song.artist,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,

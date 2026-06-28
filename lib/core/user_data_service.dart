@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/song.dart';
 import 'firebase_service.dart';
 
 class UserDataService {
@@ -12,17 +13,17 @@ class UserDataService {
 
   final FirebaseService _fb = FirebaseService();
 
-  List<Map<String, dynamic>> _likedSongs = [];
+  List<Song> _likedSongs = [];
   final Set<String> _likedIds = {};
   Timer? _likedSaveDebouncer;
 
   List<Map<String, dynamic>> _playlists = [];
   StreamSubscription<QuerySnapshot>? _playlistSub;
 
-  final ValueNotifier<List<Map<String, dynamic>>> likedNotifier = ValueNotifier([]);
+  final ValueNotifier<List<Song>> likedNotifier = ValueNotifier([]);
   final ValueNotifier<List<Map<String, dynamic>>> playlistsNotifier = ValueNotifier([]);
 
-  List<Map<String, dynamic>> get likedSongs => List.unmodifiable(_likedSongs);
+  List<Song> get likedSongs => List.unmodifiable(_likedSongs);
   List<Map<String, dynamic>> get playlists => List.unmodifiable(_playlists);
 
   bool isLiked(String songId) => _likedIds.contains(songId);
@@ -66,10 +67,10 @@ class UserDataService {
         final List raw = jsonDecode(jsonStr);
         _likedSongs = raw
             .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
+            .map((e) => Song.fromJson(Map<String, dynamic>.from(e)))
             .toList();
         _likedIds.clear();
-        _likedIds.addAll(_likedSongs.map((s) => s['id'] as String));
+        _likedIds.addAll(_likedSongs.map((s) => s.id));
         likedNotifier.value = List.unmodifiable(_likedSongs);
       }
     } catch (e) {
@@ -97,11 +98,7 @@ class UserDataService {
   Future<void> _saveLikedLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final rawList = _likedSongs.map((s) {
-        final map = Map<String, dynamic>.from(s);
-        map['likedAt'] = DateTime.now().toIso8601String();
-        return map;
-      }).toList();
+      final rawList = _likedSongs.map((song) => song.toJson()).toList();
       await prefs.setString(_likedLocalKey, jsonEncode(rawList));
     } catch (e) {
       debugPrint('UserDataService._saveLikedLocal error: $e');
@@ -127,10 +124,10 @@ class UserDataService {
       final raw = data['songs'] as List? ?? [];
       _likedSongs = raw
           .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
+          .map((e) => Song.fromJson(Map<String, dynamic>.from(e)))
           .toList();
       _likedIds.clear();
-      _likedIds.addAll(_likedSongs.map((s) => s['id'] as String));
+      _likedIds.addAll(_likedSongs.map((s) => s.id));
       likedNotifier.value = List.unmodifiable(_likedSongs);
       await _saveLikedLocal();
     } catch (e, s) {
@@ -156,10 +153,10 @@ class UserDataService {
     );
   }
 
-  Future<void> toggleLike(Map<String, dynamic> song) async {
-    final id = song['id'] as String;
+  Future<void> toggleLike(Song song) async {
+    final id = song.id;
     if (_likedIds.contains(id)) {
-      _likedSongs.removeWhere((s) => s['id'] == id);
+      _likedSongs.removeWhere((s) => s.id == id);
       _likedIds.remove(id);
     } else {
       _likedSongs.insert(0, song);
@@ -171,7 +168,7 @@ class UserDataService {
   }
 
   Future<void> unlike(String songId) async {
-    _likedSongs.removeWhere((s) => s['id'] == songId);
+    _likedSongs.removeWhere((s) => s.id == songId);
     _likedIds.remove(songId);
     likedNotifier.value = List.unmodifiable(_likedSongs);
     await _saveLikedLocal();
@@ -188,11 +185,7 @@ class UserDataService {
     if (doc == null) return;
     try {
       await doc.set({
-        'songs': _likedSongs.map((s) {
-          final map = Map<String, dynamic>.from(s);
-          map['likedAt'] = DateTime.now().toIso8601String();
-          return map;
-        }).toList(),
+        'songs': _likedSongs.map((song) => song.toJson()).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e, s) {
@@ -230,7 +223,7 @@ class UserDataService {
     }
   }
 
-  Future<void> addSongToPlaylist(String playlistId, Map<String, dynamic> song) async {
+  Future<void> addSongToPlaylist(String playlistId, Song song) async {
     final col = _playlistCol;
     if (col == null) return;
 
@@ -239,9 +232,9 @@ class UserDataService {
 
     final playlist = _playlists[idx];
     final List songs = List.from(playlist['songs'] ?? []);
-    if (songs.any((s) => s['id'] == song['id'])) return;
+    if (songs.any((s) => s['id'] == song.id)) return;
 
-    songs.add(song);
+    songs.add(song.toJson());
     try {
       await col.doc(playlistId).update({
         'songs': songs,
@@ -273,12 +266,12 @@ class UserDataService {
   }
 
   Future<void> reorderSongs(
-      String playlistId, List<Map<String, dynamic>> reorderedSongs) async {
+      String playlistId, List<Song> reorderedSongs) async {
     final col = _playlistCol;
     if (col == null) return;
     try {
       await col.doc(playlistId).update({
-        'songs': reorderedSongs,
+        'songs': reorderedSongs.map((s) => s.toJson()).toList(),
       });
     } catch (e, s) {
       debugPrint('UserDataService.reorderSongs error: $e\n$s');

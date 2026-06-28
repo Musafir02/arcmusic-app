@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../core/user_data_service.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
@@ -9,6 +10,7 @@ import '../widgets/mini_player.dart';
 import '../widgets/common_components.dart';
 import '../widgets/download_progress_card.dart';
 import '../widgets/song_tile.dart';
+import '../models/song.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final String playlistId;
@@ -71,15 +73,31 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         builder: (context, playlists, _) {
           final playlistIndex = playlists.indexWhere((p) => p['id'] == widget.playlistId);
           if (playlistIndex == -1) {
-            return const Scaffold(
+            return Scaffold(
               backgroundColor: AppTheme.background,
-              body: Center(child: CircularProgressIndicator(color: AppTheme.accent)),
+              appBar: AppBar(
+                backgroundColor: AppTheme.background,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              body: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.playlist_remove_rounded, size: 64, color: AppTheme.textSecondary),
+                    SizedBox(height: 16),
+                    Text('Playlist not found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+                  ],
+                ),
+              ),
             );
           }
 
           final playlist = playlists[playlistIndex];
           final List songsRaw = playlist['songs'] ?? [];
-          final songs = songsRaw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+          final songs = songsRaw.whereType<Map>().map((e) => Song.fromJson(Map<String, dynamic>.from(e))).toList();
           final cover = _getPlaylistCover(playlist);
           final pId = playlist['id'] as String;
 
@@ -145,7 +163,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(AppTheme.radiusCard),
                           child: cover != null
-                              ? Image.network(cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.music_note_rounded, color: AppTheme.accent, size: 80))
+                              ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => const Icon(Icons.music_note_rounded, color: AppTheme.accent, size: 80))
                               : const Icon(Icons.music_note_rounded, color: AppTheme.accent, size: 80),
                         ),
                       ),
@@ -185,7 +203,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                             icon: Icons.shuffle_rounded,
                             filled: false,
                             onTap: () {
-                              final shuffled = List<Map<String, dynamic>>.from(songs)..shuffle(Random());
+                              final shuffled = List<Song>.from(songs)..shuffle(Random());
                               audioHandler.playSong(shuffled.first, playlist: shuffled);
                             },
                           ),
@@ -202,7 +220,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                               border: Border.all(color: AppTheme.textSecondary.withValues(alpha: 0.3)),
                             ),
                             child: const Center(
-                              child: Icon(Icons.download_rounded, color: Color(0xFFD97757), size: 22),
+                              child: Icon(Icons.download_rounded, color: AppTheme.accent, size: 22),
                             ),
                           ),
                         ),
@@ -217,17 +235,17 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                     itemBuilder: (context, index) {
                       final song = songs[index];
                       return SongTile(
-                        key: ValueKey(song['id'] as String),
+                        key: ValueKey(song.id),
                         song: song,
                         index: index,
                         onTap: () => audioHandler.playSong(song, playlist: songs),
-                        onRemove: () => uds.removeSongFromPlaylist(pId, song['id'] as String),
+                        onRemove: () => uds.removeSongFromPlaylist(pId, song.id),
                       );
                     },
                     itemCount: songs.length,
                     onReorder: (oldIndex, newIndex) {
                       if (newIndex > oldIndex) newIndex -= 1;
-                      final reorderedSongs = List<Map<String, dynamic>>.from(songs);
+                      final reorderedSongs = List<Song>.from(songs);
                       final item = reorderedSongs.removeAt(oldIndex);
                       reorderedSongs.insert(newIndex, item);
                       uds.reorderSongs(pId, reorderedSongs);

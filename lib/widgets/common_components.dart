@@ -54,48 +54,6 @@ class ActionButton extends StatelessWidget {
   }
 }
 
-class SectionHeader extends StatelessWidget {
-  final String title;
-  final String? actionLabel;
-  final VoidCallback? onActionTap;
-
-  const SectionHeader({
-    super.key,
-    required this.title,
-    this.actionLabel,
-    this.onActionTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        if (actionLabel != null && onActionTap != null)
-          TextButton(
-            onPressed: onActionTap,
-            child: Text(
-              actionLabel!,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.accent,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
 class EmptyStateView extends StatelessWidget {
   final IconData icon;
   final String message;

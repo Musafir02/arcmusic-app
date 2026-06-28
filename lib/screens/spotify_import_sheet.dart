@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../core/api_service.dart';
 import '../core/user_data_service.dart';
 import '../core/theme.dart';
+import '../models/song.dart';
+import '../models/spotify.dart';
 
 enum ImportStep { instructions, loading, done }
 
@@ -24,7 +26,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
   int _totalTracks = 0;
   int _processedTracks = 0;
   int _matchedTracks = 0;
-  final List<Map<String, dynamic>> _matchedSongs = [];
+  final List<Song> _matchedSongs = [];
   String _currentTrackName = '';
   String? _errorMsg;
   String? _createdPlaylistId;
@@ -108,25 +110,25 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
         setState(() => _currentTrackName = '${batch.first.name} — ${batch.first.primaryArtist}');
       }
 
-      final results = await Future.wait(
+      final batchResults = await Future.wait(
         batch.map((track) => api.matchSpotifyTrack(track)),
       );
 
       if (!mounted || _cancelled) break;
 
-      for (int i = 0; i < results.length; i++) {
-        if (!mounted || _cancelled) break;
-        final song = results[i];
-        setState(() => _processedTracks++);
-        if (song != null) {
-          await UserDataService().addSongToPlaylist(playlist['id'] as String, song);
-          if (!mounted || _cancelled) break;
-          setState(() {
-            _matchedTracks++;
-            _matchedSongs.insert(0, song);
-            if (_matchedSongs.length > 60) _matchedSongs.removeLast();
-          });
+      final matchedInBatch = batchResults.whereType<Song>().toList();
+      setState(() {
+        _processedTracks += batchResults.length;
+        _matchedTracks += matchedInBatch.length;
+        for (final song in matchedInBatch) {
+          _matchedSongs.add(song);
+          if (_matchedSongs.length > 60) _matchedSongs.removeAt(0);
         }
+      });
+
+      for (final song in matchedInBatch) {
+        if (!mounted || _cancelled) break;
+        await UserDataService().addSongToPlaylist(playlist['id'] as String, song);
       }
     }
 
@@ -181,10 +183,10 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+                  color: AppTheme.accent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.queue_music_rounded, color: Color(0xFF1DB954), size: 20),
+                child: const Icon(Icons.queue_music_rounded, color: AppTheme.accent, size: 20),
               ),
               const SizedBox(width: 12),
               const Column(
@@ -220,7 +222,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
                   child: TextField(
                     controller: _urlController,
                     style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                    cursorColor: const Color(0xFF1DB954),
+                    cursorColor: AppTheme.accent,
                     onChanged: (_) {
                       if (_errorMsg != null) setState(() => _errorMsg = null);
                     },
@@ -264,7 +266,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
             child: ElevatedButton(
               onPressed: _startImport,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1DB954),
+                backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
@@ -291,9 +293,9 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
         Container(
           width: 26,
           height: 26,
-          decoration: BoxDecoration(color: const Color(0xFF1DB954).withValues(alpha: 0.15), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: AppTheme.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
           child: Center(
-            child: Text(number, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF1DB954))),
+            child: Text(number, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.accent)),
           ),
         ),
         const SizedBox(width: 12),
@@ -316,7 +318,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Color(0xFF1DB954), strokeWidth: 2.5)),
+              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 2.5)),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -341,7 +343,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
             child: LinearProgressIndicator(
               value: progress,
               backgroundColor: AppTheme.background,
-              color: const Color(0xFF1DB954),
+              color: AppTheme.accent,
               minHeight: 6,
             ),
           ),
@@ -350,7 +352,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('$_processedTracks / $_totalTracks tracks', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-              Text('$_matchedTracks matched', style: const TextStyle(fontSize: 12, color: Color(0xFF1DB954), fontWeight: FontWeight.w600)),
+              Text('$_matchedTracks matched', style: const TextStyle(fontSize: 12, color: AppTheme.accent, fontWeight: FontWeight.w600)),
             ],
           ),
           if (_currentTrackName.isNotEmpty) ...[
@@ -372,7 +374,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
                 itemCount: _matchedSongs.length,
                 itemBuilder: (context, index) {
                   final song = _matchedSongs[index];
-                  final imgSmall = song['imageSmall'] as String? ?? '';
+                  final imgSmall = song.imageSmall ?? '';
 
                   return ListTile(
                     dense: true,
@@ -383,9 +385,9 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
                           ? Image.network(imgSmall, width: 34, height: 34, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _songFallback())
                           : _songFallback(),
                     ),
-                    title: Text(song['name'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(song['artist'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
-                    trailing: const Icon(Icons.check_rounded, color: Color(0xFF1DB954), size: 16),
+                    title: Text(song.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                    subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                    trailing: const Icon(Icons.check_rounded, color: AppTheme.accent, size: 16),
                   );
                 },
               ),
@@ -429,8 +431,8 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
           Container(
             width: 68,
             height: 68,
-            decoration: BoxDecoration(color: const Color(0xFF1DB954).withValues(alpha: 0.15), shape: BoxShape.circle),
-            child: const Icon(Icons.check_rounded, color: Color(0xFF1DB954), size: 38),
+            decoration: BoxDecoration(color: AppTheme.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+            child: const Icon(Icons.check_rounded, color: AppTheme.accent, size: 38),
           ),
           const SizedBox(height: 16),
           Text(
@@ -444,7 +446,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _statChip('$_matchedTracks', 'matched', const Color(0xFF1DB954)),
+              _statChip('$_matchedTracks', 'matched', AppTheme.accent),
               const SizedBox(width: 10),
               _statChip('$skipped', 'not found', AppTheme.textSecondary),
               const SizedBox(width: 10),
@@ -463,7 +465,7 @@ class _SpotifyImportSheetState extends State<SpotifyImportSheet> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1DB954),
+                backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,

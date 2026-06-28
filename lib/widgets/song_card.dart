@@ -3,18 +3,19 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../core/theme.dart';
 import 'song_tile.dart';
 import '../core/download_service.dart';
+import '../models/song.dart';
 
 class SongCard extends StatelessWidget {
-  final Map<String, dynamic> song;
+  final Song song;
   final VoidCallback? onTap;
 
   const SongCard({super.key, required this.song, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final imgLarge = song['imageLarge'] as String? ?? '';
-    final imgMedium = song['image'] as String? ?? '';
-    final id = song['id'] as String? ?? '';
+    final imgLarge = song.imageLarge ?? '';
+    final imgMedium = song.image ?? '';
+    final id = song.id;
 
     return GestureDetector(
       onTap: onTap,
@@ -61,7 +62,7 @@ class SongCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    song['name'] as String? ?? '',
+                    song.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
@@ -73,7 +74,7 @@ class SongCard extends StatelessWidget {
                     if (downloadedIds.contains(id)) {
                       return const Padding(
                         padding: EdgeInsets.only(left: 4),
-                        child: Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFFD97757)),
+                        child: Icon(Icons.check_circle_rounded, size: 13, color: AppTheme.accent),
                       );
                     }
                     return const SizedBox.shrink();
@@ -83,7 +84,7 @@ class SongCard extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              song['artist'] as String? ?? '',
+              song.artist,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),

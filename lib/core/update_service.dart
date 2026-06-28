@@ -68,7 +68,10 @@ class UpdateService {
       final response = await http
           .get(
             Uri.parse(AppConfig.githubReleasesUrl),
-            headers: {'Accept': 'application/vnd.github+json'},
+            headers: {
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'ArcMusic/1.0',
+            },
           )
           .timeout(const Duration(seconds: 10));
 
@@ -146,6 +149,16 @@ class UpdateService {
   Future<void> downloadAndInstall() async {
     final info = updateAvailableNotifier.value;
     if (info == null) return;
+
+    if (downloadStateNotifier.value == UpdateDownloadState.done) {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/update.apk');
+      if (await file.exists()) {
+        await OpenFile.open(file.path);
+      }
+      return;
+    }
+
     if (downloadStateNotifier.value == UpdateDownloadState.downloading) return;
 
     downloadStateNotifier.value = UpdateDownloadState.downloading;
@@ -193,6 +206,7 @@ class UpdateService {
     downloadStateNotifier.value = UpdateDownloadState.idle;
     downloadProgressNotifier.value = 0.0;
     updateAvailableNotifier.value = null;
+    resetForNextCheck();
   }
 
   void resetForNextCheck() {

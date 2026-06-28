@@ -131,16 +131,16 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                 margin: const EdgeInsets.only(right: 16),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1DB954).withValues(alpha: 0.12),
+                  color: AppTheme.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.3), width: 1),
+                  border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3), width: 1),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.queue_music_rounded, color: Color(0xFF1DB954), size: 16),
+                    Icon(Icons.queue_music_rounded, color: AppTheme.accent, size: 16),
                     SizedBox(width: 6),
-                    Text('Import', style: TextStyle(color: Color(0xFF1DB954), fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text('Import', style: TextStyle(color: AppTheme.accent, fontSize: 13, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),

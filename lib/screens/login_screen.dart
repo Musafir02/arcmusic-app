@@ -146,6 +146,7 @@ class _LoginScreenState extends State<LoginScreen>
         );
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint('Sign in FirebaseAuthException: ${e.message}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -159,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen>
         );
       }
     } on PlatformException catch (e) {
+      debugPrint('Sign in PlatformException: ${e.message}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -171,7 +173,8 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Sign in error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -338,7 +341,7 @@ class _LoginScreenState extends State<LoginScreen>
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A1A1A),
+                        color: AppTheme.background,
                         letterSpacing: 0.3,
                       ),
                     ),

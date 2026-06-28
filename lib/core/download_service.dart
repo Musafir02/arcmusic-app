@@ -6,11 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'config.dart';
+import '../models/song.dart';
 
 enum DownloadStatus { pending, downloading, paused, completed, failed }
 
 class DownloadTask {
-  final Map<String, dynamic> song;
+  final Song song;
   double progress;
   DownloadStatus status;
 
@@ -55,11 +56,10 @@ class DownloadService {
       final jsonStr = prefs.getString(AppConfig.keyDownloadedSongsList);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final List raw = jsonDecode(jsonStr);
-        final songs = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        final songs = raw.whereType<Map>().map((e) => Song.fromJson(Map<String, dynamic>.from(e))).toList();
         for (final song in songs) {
-          final id = song['id'] as String? ?? '';
-          if (id.isNotEmpty) {
-            _progressMap[id] = 1.0;
+          if (song.id.isNotEmpty) {
+            _progressMap[song.id] = 1.0;
           }
         }
         progressNotifier.value = Map<String, double>.from(_progressMap);
@@ -86,10 +86,10 @@ class DownloadService {
     return null;
   }
 
-  void downloadSong(Map<String, dynamic> song) {
-    final id = song['id'] as String? ?? '';
+  void downloadSong(Song song) {
+    final id = song.id;
     if (id.isEmpty || isSongDownloaded(id)) return;
-    if (_queue.any((task) => task.song['id'] == id)) return;
+    if (_queue.any((task) => task.song.id == id)) return;
 
     if (_queue.isEmpty) {
       _activeBatchId = null;
@@ -107,16 +107,14 @@ class DownloadService {
     }
   }
 
-  void downloadPlaylist(List<Map<String, dynamic>> songs, String batchId) {
-    if (_queue.isEmpty) {
-      _activeBatchId = batchId;
-      activeBatchIdNotifier.value = batchId;
-    }
+  void downloadPlaylist(List<Song> songs, String batchId) {
+    _activeBatchId = batchId;
+    activeBatchIdNotifier.value = batchId;
     bool addedAny = false;
     for (final song in songs) {
-      final id = song['id'] as String? ?? '';
+      final id = song.id;
       if (id.isEmpty || isSongDownloaded(id)) continue;
-      if (_queue.any((task) => task.song['id'] == id)) continue;
+      if (_queue.any((task) => task.song.id == id)) continue;
 
       _queue.add(DownloadTask(song: song));
       addedAny = true;
@@ -159,7 +157,7 @@ class DownloadService {
   }
 
   void cancelSong(String songId) {
-    final index = _queue.indexWhere((task) => task.song['id'] == songId);
+    final index = _queue.indexWhere((task) => task.song.id == songId);
     if (index == -1) return;
 
     final task = _queue[index];
@@ -261,8 +259,8 @@ class DownloadService {
 
   Future<void> _downloadTask(DownloadTask task) async {
     final song = task.song;
-    final id = song['id'] as String? ?? '';
-    final downloadUrl = song['downloadUrl'] as String? ?? '';
+    final id = song.id;
+    final downloadUrl = song.downloadUrl ?? '';
     if (id.isEmpty || downloadUrl.isEmpty) {
       task.status = DownloadStatus.failed;
       _notify();
@@ -336,7 +334,7 @@ class DownloadService {
     }
   }
 
-  Future<void> _saveDownloadedSongMetadata(Map<String, dynamic> song) async {
+  Future<void> _saveDownloadedSongMetadata(Song song) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(AppConfig.keyDownloadedSongIds, _downloadedSongIds.toList());
@@ -347,8 +345,8 @@ class DownloadService {
       if (jsonStr != null && jsonStr.isNotEmpty) {
         list = jsonDecode(jsonStr);
       }
-      if (!list.any((e) => e['id'] == song['id'])) {
-        list.add(song);
+      if (!list.any((e) => e['id'] == song.id)) {
+        list.add(song.toJson());
         await prefs.setString(AppConfig.keyDownloadedSongsList, jsonEncode(list));
       }
     } catch (e) {

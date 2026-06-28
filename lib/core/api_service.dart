@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'config.dart';
+import '../models/song.dart';
+import '../models/lyrics.dart';
+import '../models/spotify.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._();
@@ -27,7 +30,7 @@ class ApiService {
     _lyricsCache[key] = val;
   }
 
-  Map<String, dynamic> _parseApiSong(Map<String, dynamic> s) {
+  Song _parseApiSong(Map<String, dynamic> s) {
     final imageRaw = s['image'];
     final images = imageRaw is List ? imageRaw : const [];
 
@@ -69,28 +72,20 @@ class ApiService {
           .replaceAll('&#039;', "'");
     }
 
-    return {
+    return Song.fromJson({
       'id': s['id']?.toString() ?? '',
       'name': cleanHtml(s['name']?.toString() ?? ''),
-      'year': s['year']?.toString() ?? '',
       'duration': s['duration'] as int? ?? 0,
-      'playCount': s['playCount'] as int? ?? 0,
-      'language': s['language']?.toString() ?? '',
       'album': cleanHtml(s['album']?['name']?.toString() ?? ''),
-      'albumId': s['album']?['id']?.toString() ?? '',
       'artist': artistNamesList.join(', '),
-      'artistIds': artists
-          .map((a) => (a is Map && a['id'] != null) ? a['id'].toString() : '')
-          .where((id) => id.isNotEmpty)
-          .toList(),
       'imageSmall': getImageUrl(0),
       'image': getImageUrl(1),
       'imageLarge': getImageUrl(2),
       'downloadUrl': bestDownload,
-    };
+    });
   }
 
-  Future<List<Map<String, dynamic>>> searchSongs(String query,
+  Future<List<Song>> searchSongs(String query,
       {int page = 1, int limit = 15}) async {
     final uri = Uri.parse(
         '${AppConfig.apiBaseUrl}/api/search/songs?query=${Uri.encodeComponent(query)}&page=$page&limit=$limit');
@@ -99,7 +94,7 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
-          final results = data['data']['results'] as List? ?? [];
+          final results = (data['data'] as Map?)?['results'] as List? ?? [];
           return results
               .whereType<Map>()
               .map((s) => _parseApiSong(Map<String, dynamic>.from(s)))
@@ -112,7 +107,7 @@ class ApiService {
     return [];
   }
 
-  Future<List<Map<String, dynamic>>> getSongSuggestions(String songId,
+  Future<List<Song>> getSongSuggestions(String songId,
       {int limit = 10}) async {
     final uri =
         Uri.parse('${AppConfig.apiBaseUrl}/api/songs/$songId/suggestions?limit=$limit');
@@ -134,7 +129,7 @@ class ApiService {
     return [];
   }
 
-  Future<Map<String, dynamic>?> getSongDetails(String songId) async {
+  Future<Song?> getSongDetails(String songId) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/songs?id=$songId');
     try {
       final response = await http.get(uri).timeout(AppConfig.httpTimeout);
@@ -176,15 +171,19 @@ class ApiService {
           tracks: tracks,
         );
       }
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['error'] ?? 'HTTP ${response.statusCode}');
+      try {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['error'] ?? 'HTTP ${response.statusCode}');
+      } catch (_) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
     } catch (e, s) {
       debugPrint('fetchSpotifyPlaylist error: $e\n$s');
       rethrow;
     }
   }
 
-  Future<Map<String, dynamic>?> matchSpotifyTrack(SpotifyTrack track) async {
+  Future<Song?> matchSpotifyTrack(SpotifyTrack track) async {
     final targetSecs = track.durationMs / 1000.0;
     final cleanName = _cleanTitle(track.name);
     final primaryArtist =
@@ -198,36 +197,36 @@ class ApiService {
     ].where((q) => q.isNotEmpty).toList();
 
     final seen = <String>{};
-    final candidates = <Map<String, dynamic>>[];
+    final candidates = <Song>[];
 
     for (final query in queries) {
       if (!seen.add(query)) continue;
       try {
         final results = await searchSongs(query, limit: 8);
         for (final s in results) {
-          if (!candidates.any((c) => c['id'] == s['id'])) candidates.add(s);
+          if (!candidates.any((c) => c.id == s.id)) candidates.add(s);
         }
       } catch (_) {}
       if (candidates.length >= 15) break;
     }
 
-    Map<String, dynamic>? best;
+    Song? best;
     double bestScore = double.negativeInfinity;
 
     for (final song in candidates) {
-      final songClean = _cleanTitle((song['name'] as String? ?? '').toLowerCase());
+      final songClean = _cleanTitle(song.name.toLowerCase());
       final trackClean = cleanName.toLowerCase();
 
       final nameSim = _stringSimilarity(songClean, trackClean);
       if (nameSim < 0.38) continue;
 
-      final duration = song['duration'] as int? ?? 0;
+      final duration = song.duration;
       final durDiff =
           targetSecs > 0 ? (duration - targetSecs).abs() : 0.0;
       final durOk = targetSecs == 0 || durDiff <= 30;
       if (!durOk && nameSim < 0.82) continue;
 
-      final artistNames = song['artist'] as String? ?? '';
+      final artistNames = song.artist;
       final artistBonus = track.artists.any((a) => artistNames
                   .toLowerCase()
                   .contains(a.toLowerCase().split(' ').first) &&
@@ -451,80 +450,3 @@ class ApiService {
   }
 }
 
-class LyricsResult {
-  final String? syncedLrc;
-  final String? plainText;
-
-  LyricsResult({this.syncedLrc, this.plainText});
-
-  bool get isEmpty => syncedLrc == null && plainText == null;
-  bool get hasSynced => syncedLrc != null && syncedLrc!.isNotEmpty;
-}
-
-class SpotifyTrack {
-  final String name;
-  final List<String> artists;
-  final int durationMs;
-  final String album;
-
-  const SpotifyTrack({
-    required this.name,
-    required this.artists,
-    required this.durationMs,
-    required this.album,
-  });
-
-  String get primaryArtist => artists.isNotEmpty ? artists.first : '';
-}
-
-class SpotifyPlaylistResult {
-  final String name;
-  final String owner;
-  final List<SpotifyTrack> tracks;
-
-  const SpotifyPlaylistResult({
-    required this.name,
-    required this.owner,
-    required this.tracks,
-  });
-}
-
-class LrcLine {
-  final Duration timestamp;
-  final String text;
-  LrcLine(this.timestamp, this.text);
-}
-
-List<LrcLine> parseLrc(String lrc) {
-  final lines = <LrcLine>[];
-  final regex = RegExp(r'\[(\d{2}):(\d{2})(?:\.(\d+))?\]\s*(.*)');
-
-  for (final line in lrc.split('\n')) {
-    final match = regex.firstMatch(line.trim());
-    if (match != null) {
-      final min = int.parse(match.group(1)!);
-      final sec = int.parse(match.group(2)!);
-      final msStr = match.group(3);
-      int ms = 0;
-      if (msStr != null) {
-        if (msStr.length == 1) {
-          ms = int.parse(msStr) * 100;
-        } else if (msStr.length == 2) {
-          ms = int.parse(msStr) * 10;
-        } else {
-          ms = int.parse(msStr.substring(0, 3));
-        }
-      }
-      final text = match.group(4)?.trim() ?? '';
-      if (text.isNotEmpty) {
-        lines.add(LrcLine(
-          Duration(minutes: min, seconds: sec, milliseconds: ms),
-          text,
-        ));
-      }
-    }
-  }
-
-  lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-  return lines;
-}

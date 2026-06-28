@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/player_service.dart';
+import '../core/theme.dart';
 import '../widgets/mini_player.dart';
 import 'home_screen.dart';
 
@@ -31,11 +32,11 @@ class _AppShellState extends State<AppShell> {
           content: Text(
             msg,
             style: const TextStyle(
-              color: Color(0xFFD97757),
+              color: AppTheme.accent,
               fontWeight: FontWeight.w600,
             ),
           ),
-          backgroundColor: const Color(0xFF0E0D0C),
+          backgroundColor: AppTheme.background,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
         ),

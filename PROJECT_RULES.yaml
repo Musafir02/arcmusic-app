@@ -54,13 +54,10 @@ Screens:
 
 Core:
   theme: lib/core/theme.dart
-  auth: lib/core/auth_service.dart
+  auth: lib/core/firebase_service.dart
   api: lib/core/api_service.dart
   player: lib/core/player_service.dart (singleton, just_audio, audio_service)
   taste: lib/core/taste_service.dart (singleton, Firestore, recommendation engine)
-
-Models:
-  song: lib/models/song.dart
 
 Widgets:
   song_card: lib/widgets/song_card.dart (horizontal carousel item)

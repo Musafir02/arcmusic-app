@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../core/user_data_service.dart';
 import '../core/theme.dart';
+import '../models/song.dart';
 
-Future<void> showSongPicker(BuildContext context, List<Map<String, dynamic>> songs) async {
+Future<void> showSongPicker(BuildContext context, List<Song> songs) async {
   if (songs.isEmpty) return;
   await showModalBottomSheet(
     context: context,
@@ -13,7 +14,7 @@ Future<void> showSongPicker(BuildContext context, List<Map<String, dynamic>> son
 }
 
 class _SongPickerSheet extends StatefulWidget {
-  final List<Map<String, dynamic>> songs;
+  final List<Song> songs;
   const _SongPickerSheet({required this.songs});
 
   @override
@@ -99,9 +100,10 @@ class _SongPickerSheetState extends State<_SongPickerSheet> {
     final List songs = playlist['songs'] ?? [];
     for (final s in songs) {
       if (s is Map) {
-        final img = s['imageLarge'] as String? ?? '';
+        final song = Song.fromJson(Map<String, dynamic>.from(s));
+        final img = song.imageLarge ?? '';
         if (img.isNotEmpty) return img;
-        final imgMed = s['image'] as String? ?? '';
+        final imgMed = song.image ?? '';
         if (imgMed.isNotEmpty) return imgMed;
       }
     }

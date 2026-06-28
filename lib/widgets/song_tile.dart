@@ -4,9 +4,10 @@ import '../core/theme.dart';
 import '../core/user_data_service.dart';
 import '../core/download_service.dart';
 import '../screens/playlist_song_picker.dart';
+import '../models/song.dart';
 
 class SongTile extends StatelessWidget {
-  final Map<String, dynamic> song;
+  final Song song;
   final int index;
   final VoidCallback onTap;
   final VoidCallback? onRemove;
@@ -19,10 +20,10 @@ class SongTile extends StatelessWidget {
     this.onRemove,
   });
 
-  static void showSongContext(BuildContext context, Map<String, dynamic> song, VoidCallback onTap, {VoidCallback? onRemove}) {
+  static void showSongContext(BuildContext context, Song song, VoidCallback onTap, {VoidCallback? onRemove}) {
     final ds = DownloadService();
     final uds = UserDataService();
-    final id = song['id'] as String;
+    final id = song.id;
 
     showModalBottomSheet(
       context: context,
@@ -74,7 +75,7 @@ class SongTile extends StatelessWidget {
                 },
               )
             else
-              ValueListenableBuilder<List<Map<String, dynamic>>>(
+              ValueListenableBuilder<List<Song>>(
                 valueListenable: uds.likedNotifier,
                 builder: (context, liked, _) {
                   final likedActive = uds.isLiked(id);
@@ -100,7 +101,7 @@ class SongTile extends StatelessWidget {
                   final dl = ids.contains(id);
                   return Icon(
                     dl ? Icons.check_circle_rounded : Icons.download_rounded,
-                    color: dl ? const Color(0xFFD97757) : AppTheme.textSecondary,
+                    color: dl ? AppTheme.accent : AppTheme.textSecondary,
                   );
                 },
               ),
@@ -120,7 +121,7 @@ class SongTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final uds = UserDataService();
     final ds = DownloadService();
-    final id = song['id'] as String? ?? '';
+    final id = song.id;
 
     return InkWell(
       onTap: onTap,
@@ -146,9 +147,9 @@ class SongTile extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
-                imageUrl: (song['image'] as String? ?? '').isNotEmpty
-                    ? (song['image'] as String)
-                    : (song['imageSmall'] as String? ?? ''),
+                imageUrl: (song.image ?? '').isNotEmpty
+                    ? (song.image!)
+                    : (song.imageSmall ?? ''),
                 width: 52,
                 height: 52,
                 fit: BoxFit.cover,
@@ -170,7 +171,7 @@ class SongTile extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          song['name'] as String? ?? '',
+                          song.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
@@ -181,7 +182,7 @@ class SongTile extends StatelessWidget {
                         builder: (context, ids, _) => ids.contains(id)
                             ? const Padding(
                                 padding: EdgeInsets.only(left: 6),
-                                child: Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFFD97757)),
+                                child: Icon(Icons.check_circle_rounded, size: 14, color: AppTheme.accent),
                               )
                             : const SizedBox.shrink(),
                       ),
@@ -189,7 +190,7 @@ class SongTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    song['artist'] as String? ?? '',
+                    song.artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
@@ -205,7 +206,7 @@ class SongTile extends StatelessWidget {
                 onPressed: onRemove,
               )
             else
-              ValueListenableBuilder<List<Map<String, dynamic>>>(
+              ValueListenableBuilder<List<Song>>(
                 valueListenable: uds.likedNotifier,
                 builder: (context, liked, _) {
                   final activeLiked = uds.isLiked(id);

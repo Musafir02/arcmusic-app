@@ -3,13 +3,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
 import '../screens/full_player_screen.dart';
+import '../models/song.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Map<String, dynamic>?>(
+    return ValueListenableBuilder<Song?>(
       valueListenable: audioHandler.currentSongNotifier,
       builder: (context, song, _) {
         if (song == null) return const SizedBox.shrink();
@@ -20,7 +21,7 @@ class MiniPlayer extends StatelessWidget {
 }
 
 class _MiniPlayerContent extends StatelessWidget {
-  final Map<String, dynamic> song;
+  final Song song;
   const _MiniPlayerContent({required this.song});
 
   void _openFullPlayer(BuildContext context) {
@@ -45,8 +46,8 @@ class _MiniPlayerContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final imgMedium = song['image'] as String? ?? '';
-    final imgSmall = song['imageSmall'] as String? ?? '';
+    final imgMedium = song.image ?? '';
+    final imgSmall = song.imageSmall ?? '';
 
     return GestureDetector(
       onTap: () => _openFullPlayer(context),
@@ -118,14 +119,14 @@ class _MiniPlayerContent extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          song['name'] as String? ?? '',
+                          song.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          song['artist'] as String? ?? '',
+                          song.artist,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),

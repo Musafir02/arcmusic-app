@@ -11,8 +11,17 @@ import 'screens/app_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  await initAudioService();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
+  try {
+    await initAudioService();
+  } catch (e) {
+    debugPrint('Audio init failed: $e');
+    audioHandler = AudioPlayerHandler();
+  }
   await DownloadService().load();
   await UserDataService().load();
   SystemChrome.setSystemUIOverlayStyle(
@@ -95,7 +104,9 @@ class _AuthGateState extends State<AuthGate> {
         if (user != null) {
           if (_lastUid != user.uid) {
             _lastUid = user.uid;
-            UserDataService().load();
+            UserDataService().load().catchError((e) {
+            debugPrint('UserDataService.load error in AuthGate: $e');
+          });
           }
           return const AppShell();
         }

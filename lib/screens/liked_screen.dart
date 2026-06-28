@@ -8,6 +8,7 @@ import '../widgets/mini_player.dart';
 import '../widgets/song_tile.dart';
 import '../widgets/common_components.dart';
 import '../widgets/download_progress_card.dart';
+import '../models/song.dart';
 
 class LikedScreen extends StatelessWidget {
   const LikedScreen({super.key});
@@ -16,7 +17,7 @@ class LikedScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: ValueListenableBuilder<List<Map<String, dynamic>>>(
+      body: ValueListenableBuilder<List<Song>>(
         valueListenable: UserDataService().likedNotifier,
         builder: (context, songs, _) {
           return CustomScrollView(
@@ -64,7 +65,7 @@ class LikedScreen extends StatelessWidget {
 }
 
 class _LikedAppBar extends StatelessWidget {
-  final List<Map<String, dynamic>> songs;
+  final List<Song> songs;
   const _LikedAppBar({required this.songs});
 
   @override
@@ -89,7 +90,7 @@ class _LikedAppBar extends StatelessWidget {
 }
 
 class _LikedHeroHeader extends StatelessWidget {
-  final List<Map<String, dynamic>> songs;
+  final List<Song> songs;
   const _LikedHeroHeader({required this.songs});
 
   @override
@@ -132,7 +133,7 @@ class _LikedHeroHeader extends StatelessWidget {
 }
 
 class _LikedActionRow extends StatelessWidget {
-  final List<Map<String, dynamic>> songs;
+  final List<Song> songs;
   const _LikedActionRow({required this.songs});
 
   @override
@@ -162,7 +163,7 @@ class _LikedActionRow extends StatelessWidget {
                 filled: false,
                 onTap: () {
                   if (songs.isNotEmpty) {
-                    final shuffled = List<Map<String, dynamic>>.from(songs)..shuffle(Random());
+                    final shuffled = List<Song>.from(songs)..shuffle(Random());
                     audioHandler.playSong(shuffled.first, playlist: shuffled);
                   }
                 },
@@ -180,7 +181,7 @@ class _LikedActionRow extends StatelessWidget {
                   border: Border.all(color: AppTheme.textSecondary.withValues(alpha: 0.3)),
                 ),
                 child: const Center(
-                  child: Icon(Icons.download_rounded, color: Color(0xFFD97757), size: 22),
+                  child: Icon(Icons.download_rounded, color: AppTheme.accent, size: 22),
                 ),
               ),
             ),

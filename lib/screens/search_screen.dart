@@ -6,6 +6,7 @@ import '../widgets/song_tile.dart';
 import '../core/player_service.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/common_components.dart';
+import '../models/song.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
@@ -21,7 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
 
-  List<Map<String, dynamic>> _results = [];
+  List<Song> _results = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -66,7 +67,6 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _searchController.addListener(_onTextChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
         _searchController.text = widget.initialQuery!;
@@ -80,15 +80,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _searchController.removeListener(_onTextChanged);
     _searchController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  void _onTextChanged() {
-    setState(() {});
   }
 
   void _onScroll() {

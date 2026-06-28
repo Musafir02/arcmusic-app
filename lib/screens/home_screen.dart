@@ -12,9 +12,11 @@ import 'liked_screen.dart';
 import 'playlists_screen.dart';
 import '../widgets/song_card.dart';
 import '../widgets/song_tile.dart';
+import '../widgets/section_header.dart';
 import '../widgets/common_components.dart';
 import '../core/update_service.dart';
 import 'update_dialog.dart';
+import '../models/song.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _defaultName = 'Listener';
   final ApiService _api = ApiService();
   final TasteService _taste = TasteService();
   final List<_SongSection> _sections = [];
@@ -88,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              user?.displayName ?? 'Listener',
+              user?.displayName ?? _defaultName,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 4),
@@ -135,14 +138,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void _restoreLastSong() {
     if (audioHandler.currentSong != null) return;
     final lastSong = _taste.getLastSong();
-    if (lastSong != null && lastSong['downloadUrl'] != null) {
+    if (lastSong != null && lastSong.downloadUrl != null) {
       audioHandler.restoreSong(lastSong);
     }
   }
 
   Future<void> _fetchHomeData() async {
     final year = DateTime.now().year;
-    final futures = <Future<List<Map<String, dynamic>>>>[];
+    final futures = <Future<List<Song>>>[];
     final names = <String>[];
 
     final topArtists = _taste.topArtistNames;
@@ -159,17 +162,25 @@ class _HomeScreenState extends State<HomeScreen> {
       futures.add(_api.searchSongs(queries.isNotEmpty ? queries.first : mood, limit: 10));
     }
 
-    names.addAll(['Trending Now', 'Top Hits']);
+    names.add('Trending Now');
+    names.add('Top Hits');
     futures.add(_api.searchSongs('trending songs $year', limit: 10));
     futures.add(_api.searchSongs('top hindi hits $year', limit: 10));
 
     try {
       final results = await Future.wait(futures);
-      _sections.clear();
+      final newSections = <_SongSection>[];
       for (int i = 0; i < names.length; i++) {
         if (results[i].isNotEmpty) {
-          _sections.add(_SongSection(names[i], results[i]));
+          newSections.add(_SongSection(names[i], results[i]));
         }
+      }
+      if (mounted) {
+        setState(() {
+          _sections
+            ..clear()
+            ..addAll(newSections);
+        });
       }
     } catch (_) {}
 
@@ -188,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final name = user?.displayName ?? 'Listener';
+    final name = user?.displayName ?? _defaultName;
     final recents = _taste.recentlyPlayed;
 
     return Scaffold(
@@ -377,6 +388,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _SongSection {
   final String title;
-  final List<Map<String, dynamic>> songs;
+  final List<Song> songs;
   const _SongSection(this.title, this.songs);
 }
