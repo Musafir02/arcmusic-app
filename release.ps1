@@ -8,6 +8,10 @@ $ErrorActionPreference = "Stop"
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $projectDir
 
+# Use the repo that the app's update service checks
+$releaseRepo = "Musafir02/arcmusic-app"
+$githubUrl = "https://github.com/$releaseRepo"
+
 # Read current version from pubspec.yaml
 $versionLine = Select-String -Path "pubspec.yaml" -Pattern '^version: ' | ForEach-Object { $_.Line }
 $version = ($versionLine -split ': ')[1].Trim()
@@ -41,11 +45,21 @@ if ($tagExists) {
     if ($LASTEXITCODE -ne 0) { throw "Flutter build failed" }
 }
 
-# Git tag and push
+# Commit and tag in local repo
 git add pubspec.yaml
 git commit -m "release: $tag"
 git tag "$tag"
-git push origin master --tags
+
+# Ensure we have a remote pointing to the release repo
+$remoteName = "release-upstream"
+$existingRemote = git remote -v | Select-String "$releaseRepo"
+if (-not $existingRemote) {
+    git remote add "$remoteName" "https://github.com/$releaseRepo.git"
+} else {
+    $remoteName = ($existingRemote -split '\s')[0]
+}
+$branch = "main"
+git push "$remoteName" $branch --tags
 
 # Find APK files
 $apkDir = "build\app\outputs\flutter-apk"
@@ -64,11 +78,11 @@ $Changes
 - armeabi-v7a (older devices)
 "@
 
-$notes | gh release create "$tag" $apks --title "$tag" --notes -
+$notes | gh release create "$tag" $apks --title "$tag" --notes - --repo "$releaseRepo"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Release $tag published successfully!" -ForegroundColor Green
-    Write-Host "URL: https://github.com/Musafir02/arcmusic/releases/tag/$tag" -ForegroundColor Cyan
+    Write-Host "URL: https://github.com/$releaseRepo/releases/tag/$tag" -ForegroundColor Cyan
 } else {
     throw "GitHub Release creation failed"
 }

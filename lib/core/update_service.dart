@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -45,6 +46,16 @@ class UpdateService {
   http.Client? _client;
   bool _checked = false;
 
+  static const _abiChannel = MethodChannel('com.arcmusic.arcmusic/abi');
+
+  Future<String> _getDeviceAbi() async {
+    try {
+      final abi = await _abiChannel.invokeMethod<String>('getSupportedAbis');
+      if (abi != null && abi.isNotEmpty) return abi;
+    } catch (_) {}
+    return 'arm64-v8a';
+  }
+
   Future<void> checkForUpdate() async {
     if (_checked) return;
     _checked = true;
@@ -52,6 +63,7 @@ class UpdateService {
     try {
       final info = await PackageInfo.fromPlatform();
       final currentVersion = info.version;
+      final deviceAbi = await _getDeviceAbi();
 
       final response = await http
           .get(
@@ -69,13 +81,29 @@ class UpdateService {
 
       String apkUrl = '';
       int apkSize = 0;
+
+      // First try to match APK by device ABI
       for (final asset in assets) {
         if (asset is Map) {
           final name = asset['name'] as String? ?? '';
-          if (name.toLowerCase().endsWith('.apk')) {
+          if (name.toLowerCase().contains(deviceAbi) && name.toLowerCase().endsWith('.apk')) {
             apkUrl = asset['browser_download_url'] as String? ?? '';
             apkSize = (asset['size'] as num?)?.toInt() ?? 0;
             break;
+          }
+        }
+      }
+
+      // Fallback: pick any APK if ABI-specific one not found
+      if (apkUrl.isEmpty) {
+        for (final asset in assets) {
+          if (asset is Map) {
+            final name = asset['name'] as String? ?? '';
+            if (name.toLowerCase().endsWith('.apk')) {
+              apkUrl = asset['browser_download_url'] as String? ?? '';
+              apkSize = (asset['size'] as num?)?.toInt() ?? 0;
+              break;
+            }
           }
         }
       }
