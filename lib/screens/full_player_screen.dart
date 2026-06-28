@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../core/api_service.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
-import '../models/song.dart';
 import 'playlist_song_picker.dart';
 
 class FullPlayerScreen extends StatelessWidget {
@@ -13,14 +12,14 @@ class FullPlayerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: ValueListenableBuilder<Song?>(
+        child: ValueListenableBuilder<Map<String, dynamic>?>(
           valueListenable: audioHandler.currentSongNotifier,
           builder: (context, song, _) {
             if (song == null) {
               return const Center(
-                child: Text('No song playing',
-                    style: TextStyle(color: AppTheme.textSecondary)),
+                child: Text('No song playing', style: TextStyle(color: AppTheme.textSecondary)),
               );
             }
             return _PlayerBody(song: song);
@@ -31,48 +30,8 @@ class FullPlayerScreen extends StatelessWidget {
   }
 }
 
-class _LrcLine {
-  final Duration timestamp;
-  final String text;
-  _LrcLine(this.timestamp, this.text);
-}
-
-List<_LrcLine> _parseLrc(String lrc) {
-  final lines = <_LrcLine>[];
-  final regex = RegExp(r'\[(\d{2}):(\d{2})(?:\.(\d+))?\]\s*(.*)');
-
-  for (final line in lrc.split('\n')) {
-    final match = regex.firstMatch(line.trim());
-    if (match != null) {
-      final min = int.parse(match.group(1)!);
-      final sec = int.parse(match.group(2)!);
-      final msStr = match.group(3);
-      int ms = 0;
-      if (msStr != null) {
-        if (msStr.length == 1) {
-          ms = int.parse(msStr) * 100;
-        } else if (msStr.length == 2) {
-          ms = int.parse(msStr) * 10;
-        } else {
-          ms = int.parse(msStr.substring(0, 3));
-        }
-      }
-      final text = match.group(4)?.trim() ?? '';
-      if (text.isNotEmpty) {
-        lines.add(_LrcLine(
-          Duration(minutes: min, seconds: sec, milliseconds: ms),
-          text,
-        ));
-      }
-    }
-  }
-
-  lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-  return lines;
-}
-
 class _PlayerBody extends StatefulWidget {
-  final Song song;
+  final Map<String, dynamic> song;
   const _PlayerBody({required this.song});
 
   @override
@@ -85,7 +44,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
   int _currentPage = 0;
 
   LyricsResult? _lyricsResult;
-  List<_LrcLine> _syncedLines = [];
+  List<LrcLine> _syncedLines = [];
   bool _lyricsLoading = false;
   String? _cachedSongId;
 
@@ -98,48 +57,47 @@ class _PlayerBodyState extends State<_PlayerBody> {
   @override
   void didUpdateWidget(covariant _PlayerBody oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.song.id != widget.song.id) {
+    if (oldWidget.song['id'] != widget.song['id']) {
       _fetchLyrics();
     }
   }
 
   void _fetchLyrics() {
-    if (_cachedSongId == widget.song.id && _lyricsResult != null) return;
-    _cachedSongId = widget.song.id;
+    final id = widget.song['id'] as String? ?? '';
+    if (id.isEmpty) return;
+    if (_cachedSongId == id && _lyricsResult != null) return;
+    _cachedSongId = id;
     setState(() {
       _lyricsLoading = true;
       _lyricsResult = null;
       _syncedLines = [];
     });
 
-    _api
-        .getLyrics(
-      widget.song.id,
-      trackName: widget.song.name,
-      artistName: widget.song.artistNames,
-      albumName: widget.song.albumName,
-      durationSecs: widget.song.duration,
-    )
-        .then((result) {
-      if (mounted && _cachedSongId == widget.song.id) {
-        List<_LrcLine> lines = [];
+    final name = widget.song['name'] as String? ?? '';
+    final artist = widget.song['artist'] as String? ?? '';
+    final album = widget.song['album'] as String? ?? '';
+    final duration = (widget.song['duration'] as num?)?.toInt() ?? 0;
+
+    _api.getLyrics(
+      id,
+      trackName: name,
+      artistName: artist,
+      albumName: album,
+      durationSecs: duration,
+    ).then((result) {
+      if (mounted && _cachedSongId == id) {
+        List<LrcLine> lines = [];
 
         if (result.hasSynced) {
-          lines = _parseLrc(result.syncedLrc!);
+          lines = parseLrc(result.syncedLrc!);
         } else if (result.plainText != null && result.plainText!.isNotEmpty) {
-          final textLines = result.plainText!
-              .split('\n')
-              .where((l) => l.trim().isNotEmpty)
-              .toList();
+          final textLines = result.plainText!.split('\n').where((l) => l.trim().isNotEmpty).toList();
 
           if (textLines.isNotEmpty) {
-            final totalMs = widget.song.duration * 1000;
+            final totalMs = duration * 1000;
             final perLine = totalMs / textLines.length;
             for (int i = 0; i < textLines.length; i++) {
-              lines.add(_LrcLine(
-                Duration(milliseconds: (perLine * i).round()),
-                textLines[i].trim(),
-              ));
+              lines.add(LrcLine(Duration(milliseconds: (perLine * i).round()), textLines[i].trim()));
             }
           }
         }
@@ -163,8 +121,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onVerticalDragEnd: (details) {
-        if (details.primaryVelocity != null &&
-            details.primaryVelocity! > 300) {
+        if (details.primaryVelocity != null && details.primaryVelocity! > 300) {
           Navigator.pop(context);
         }
       },
@@ -209,10 +166,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
             child: Container(
               width: 40,
               height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.textSecondary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(3),
-              ),
+              decoration: BoxDecoration(color: AppTheme.textSecondary.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(3)),
             ),
           ),
           IconButton(
@@ -228,6 +182,9 @@ class _PlayerBodyState extends State<_PlayerBody> {
   }
 
   Widget _buildArtworkPage() {
+    final imgLarge = widget.song['imageLarge'] as String? ?? '';
+    final imgMedium = widget.song['image'] as String? ?? '';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Center(
@@ -236,15 +193,11 @@ class _PlayerBodyState extends State<_PlayerBody> {
           child: AspectRatio(
             aspectRatio: 1,
             child: CachedNetworkImage(
-              imageUrl: widget.song.imageLarge,
+              imageUrl: imgLarge.isNotEmpty ? imgLarge : imgMedium,
               fit: BoxFit.cover,
               errorWidget: (_, __, ___) => Container(
                 color: AppTheme.surface,
-                child: const Icon(
-                  Icons.music_note_rounded,
-                  color: AppTheme.accent,
-                  size: 80,
-                ),
+                child: const Icon(Icons.music_note_rounded, color: AppTheme.accent, size: 80),
               ),
               placeholder: (_, __) => Container(
                 color: AppTheme.surface,
@@ -252,10 +205,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
                   child: SizedBox(
                     width: 40,
                     height: 40,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      color: AppTheme.accent,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 3, color: AppTheme.accent),
                   ),
                 ),
               ),
@@ -272,19 +222,9 @@ class _PlayerBodyState extends State<_PlayerBody> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: AppTheme.accent,
-              ),
-            ),
+            SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.accent)),
             SizedBox(height: 16),
-            Text(
-              'Loading lyrics...',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-            ),
+            Text('Loading lyrics...', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
           ],
         ),
       );
@@ -295,20 +235,9 @@ class _PlayerBodyState extends State<_PlayerBody> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lyrics_outlined,
-              color: AppTheme.textSecondary.withValues(alpha: 0.4),
-              size: 56,
-            ),
+            Icon(Icons.lyrics_outlined, color: AppTheme.textSecondary.withValues(alpha: 0.4), size: 56),
             const SizedBox(height: 16),
-            const Text(
-              'Lyrics not available',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            const Text('Lyrics not available', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16, fontWeight: FontWeight.w500)),
           ],
         ),
       );
@@ -318,19 +247,14 @@ class _PlayerBodyState extends State<_PlayerBody> {
       return _SyncedLyricsView(lines: _syncedLines);
     }
 
-    if (_lyricsResult!.plainText != null &&
-        _lyricsResult!.plainText!.isNotEmpty) {
+    if (_lyricsResult!.plainText != null && _lyricsResult!.plainText!.isNotEmpty) {
       return SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
         child: Text(
           _lyricsResult!.plainText!,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15,
-            color: AppTheme.textSecondary.withValues(alpha: 0.85),
-            height: 1.8,
-          ),
+          style: TextStyle(fontSize: 15, color: AppTheme.textSecondary.withValues(alpha: 0.85), height: 1.8),
         ),
       );
     }
@@ -339,20 +263,9 @@ class _PlayerBodyState extends State<_PlayerBody> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.lyrics_outlined,
-            color: AppTheme.textSecondary.withValues(alpha: 0.4),
-            size: 56,
-          ),
+          Icon(Icons.lyrics_outlined, color: AppTheme.textSecondary.withValues(alpha: 0.4), size: 56),
           const SizedBox(height: 16),
-          const Text(
-            'Lyrics not available',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          const Text('Lyrics not available', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -369,9 +282,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
           width: active ? 20 : 7,
           height: 7,
           decoration: BoxDecoration(
-            color: active
-                ? AppTheme.accent
-                : AppTheme.textSecondary.withValues(alpha: 0.3),
+            color: active ? AppTheme.accent : AppTheme.textSecondary.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(4),
           ),
         );
@@ -385,27 +296,19 @@ class _PlayerBodyState extends State<_PlayerBody> {
       child: Column(
         children: [
           Text(
-            widget.song.name,
+            widget.song['name'] as String? ?? '',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.textPrimary,
-              letterSpacing: -0.5,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
           ),
           const SizedBox(height: 8),
           Text(
-            widget.song.artistNames,
+            widget.song['artist'] as String? ?? '',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -419,8 +322,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
         final pos = snapshot.data ?? Duration.zero;
         final dur = audioHandler.duration;
         final total = dur.inMilliseconds.toDouble();
-        final current =
-            pos.inMilliseconds.toDouble().clamp(0.0, total > 0 ? total : 1.0);
+        final current = pos.inMilliseconds.toDouble().clamp(0.0, total > 0 ? total : 1.0);
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -430,10 +332,8 @@ class _PlayerBodyState extends State<_PlayerBody> {
               activeTrackColor: AppTheme.accent,
               inactiveTrackColor: AppTheme.surface,
               thumbColor: AppTheme.accent,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 7),
-              overlayShape:
-                  const RoundSliderOverlayShape(overlayRadius: 16),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
               overlayColor: AppTheme.accent.withValues(alpha: 0.15),
             ),
             child: Slider(
@@ -460,16 +360,8 @@ class _PlayerBodyState extends State<_PlayerBody> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                audioHandler.formatDuration(pos),
-                style: const TextStyle(
-                    fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              Text(
-                audioHandler.formatDuration(dur),
-                style: const TextStyle(
-                    fontSize: 12, color: AppTheme.textSecondary),
-              ),
+              Text(audioHandler.formatDuration(pos), style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              Text(audioHandler.formatDuration(dur), style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
             ],
           ),
         );
@@ -488,9 +380,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
             builder: (_, liked, __) => GestureDetector(
               onTap: audioHandler.toggleLike,
               child: Icon(
-                liked
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
+                liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 color: liked ? AppTheme.accent : AppTheme.textSecondary,
                 size: 26,
               ),
@@ -498,11 +388,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
           ),
           GestureDetector(
             onTap: audioHandler.skipToPrevious,
-            child: const Icon(
-              Icons.skip_previous_rounded,
-              color: AppTheme.textPrimary,
-              size: 40,
-            ),
+            child: const Icon(Icons.skip_previous_rounded, color: AppTheme.textPrimary, size: 40),
           ),
           StreamBuilder<bool>(
             stream: audioHandler.playingStream,
@@ -513,14 +399,9 @@ class _PlayerBodyState extends State<_PlayerBody> {
                 child: Container(
                   width: 68,
                   height: 68,
-                  decoration: const BoxDecoration(
-                    color: AppTheme.accent,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
                   child: Icon(
-                    playing
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
+                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                     color: AppTheme.background,
                     size: 36,
                   ),
@@ -530,11 +411,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
           ),
           GestureDetector(
             onTap: audioHandler.skipToNext,
-            child: const Icon(
-              Icons.skip_next_rounded,
-              color: AppTheme.textPrimary,
-              size: 40,
-            ),
+            child: const Icon(Icons.skip_next_rounded, color: AppTheme.textPrimary, size: 40),
           ),
           ValueListenableBuilder<bool>(
             valueListenable: audioHandler.isRepeatNotifier,
@@ -554,7 +431,7 @@ class _PlayerBodyState extends State<_PlayerBody> {
 }
 
 class _SyncedLyricsView extends StatefulWidget {
-  final List<_LrcLine> lines;
+  final List<LrcLine> lines;
   const _SyncedLyricsView({required this.lines});
 
   @override
@@ -616,12 +493,7 @@ class _SyncedLyricsViewState extends State<_SyncedLyricsView> {
       shaderCallback: (bounds) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          Colors.transparent,
-          Colors.white,
-          Colors.white,
-          Colors.transparent,
-        ],
+        colors: const [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
         stops: const [0.0, 0.1, 0.88, 1.0],
       ).createShader(bounds),
       blendMode: BlendMode.dstIn,
@@ -641,10 +513,7 @@ class _SyncedLyricsViewState extends State<_SyncedLyricsView> {
             final viewportHeight = constraints.maxHeight;
             return ListView.builder(
               controller: _scrollController,
-              padding: EdgeInsets.symmetric(
-                vertical: viewportHeight / 2 - 24.0,
-                horizontal: 24,
-              ),
+              padding: EdgeInsets.symmetric(vertical: viewportHeight / 2 - 24.0, horizontal: 24),
               itemCount: widget.lines.length,
               itemExtent: 48.0,
               itemBuilder: (context, index) {
@@ -674,11 +543,7 @@ class _SyncedLyricsViewState extends State<_SyncedLyricsView> {
                         height: 1.2,
                       ),
                       textAlign: TextAlign.center,
-                      child: Text(
-                        widget.lines[index].text,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: Text(widget.lines[index].text, maxLines: 2, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 );
@@ -690,5 +555,3 @@ class _SyncedLyricsViewState extends State<_SyncedLyricsView> {
     );
   }
 }
-
-

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
-import '../core/auth_service.dart';
+import '../core/firebase_service.dart';
 import '../core/theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,7 +13,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
-  final AuthService _authService = AuthService();
+  final FirebaseService _authService = FirebaseService();
   bool _isLoading = false;
 
   late AnimationController _logoController;

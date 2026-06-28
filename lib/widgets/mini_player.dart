@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/player_service.dart';
 import '../core/theme.dart';
-import '../models/song.dart';
 import '../screens/full_player_screen.dart';
 
 class MiniPlayer extends StatelessWidget {
@@ -10,7 +9,7 @@ class MiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Song?>(
+    return ValueListenableBuilder<Map<String, dynamic>?>(
       valueListenable: audioHandler.currentSongNotifier,
       builder: (context, song, _) {
         if (song == null) return const SizedBox.shrink();
@@ -21,7 +20,7 @@ class MiniPlayer extends StatelessWidget {
 }
 
 class _MiniPlayerContent extends StatelessWidget {
-  final Song song;
+  final Map<String, dynamic> song;
   const _MiniPlayerContent({required this.song});
 
   void _openFullPlayer(BuildContext context) {
@@ -34,10 +33,7 @@ class _MiniPlayerContent extends StatelessWidget {
             position: Tween<Offset>(
               begin: const Offset(0, 1),
               end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: anim,
-              curve: Curves.easeOutCubic,
-            )),
+            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
             child: child,
           );
         },
@@ -49,6 +45,9 @@ class _MiniPlayerContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final imgMedium = song['image'] as String? ?? '';
+    final imgSmall = song['imageSmall'] as String? ?? '';
+
     return GestureDetector(
       onTap: () => _openFullPlayer(context),
       child: Container(
@@ -89,9 +88,7 @@ class _MiniPlayerContent extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: CachedNetworkImage(
-                      imageUrl: song.imageMedium.isNotEmpty
-                          ? song.imageMedium
-                          : song.imageSmall,
+                      imageUrl: imgMedium.isNotEmpty ? imgMedium : imgSmall,
                       width: 44,
                       height: 44,
                       fit: BoxFit.cover,
@@ -99,11 +96,7 @@ class _MiniPlayerContent extends StatelessWidget {
                         width: 44,
                         height: 44,
                         color: AppTheme.background,
-                        child: const Icon(
-                          Icons.music_note_rounded,
-                          color: AppTheme.accent,
-                          size: 20,
-                        ),
+                        child: const Icon(Icons.music_note_rounded, color: AppTheme.accent, size: 20),
                       ),
                       placeholder: (_, __) => Container(
                         width: 44,
@@ -113,10 +106,7 @@ class _MiniPlayerContent extends StatelessWidget {
                           child: SizedBox(
                             width: 12,
                             height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: AppTheme.accent,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.accent),
                           ),
                         ),
                       ),
@@ -128,24 +118,17 @@ class _MiniPlayerContent extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          song.name,
+                          song['name'] as String? ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          song.artistNames,
+                          song['artist'] as String? ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textSecondary,
-                          ),
+                          style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                         ),
                       ],
                     ),
@@ -164,9 +147,7 @@ class _MiniPlayerContent extends StatelessWidget {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            playing
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
+                            playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                             color: AppTheme.background,
                             size: 22,
                           ),

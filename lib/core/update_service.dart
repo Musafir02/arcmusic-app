@@ -1,0 +1,171 @@
+﻿import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'config.dart';
+
+enum UpdateDownloadState { idle, downloading, done, failed }
+
+class AppUpdateInfo {
+  final String version;
+  final String tagName;
+  final String changelog;
+  final int apkSizeBytes;
+  final String apkDownloadUrl;
+
+  const AppUpdateInfo({
+    required this.version,
+    required this.tagName,
+    required this.changelog,
+    required this.apkSizeBytes,
+    required this.apkDownloadUrl,
+  });
+
+  String get formattedSize {
+    if (apkSizeBytes <= 0) return 'Unknown size';
+    final mb = apkSizeBytes / (1024 * 1024);
+    return '${mb.toStringAsFixed(1)} MB';
+  }
+}
+
+class UpdateService {
+  static final UpdateService _instance = UpdateService._();
+  factory UpdateService() => _instance;
+  UpdateService._();
+
+  final ValueNotifier<AppUpdateInfo?> updateAvailableNotifier = ValueNotifier(null);
+  final ValueNotifier<double> downloadProgressNotifier = ValueNotifier(0.0);
+  final ValueNotifier<UpdateDownloadState> downloadStateNotifier =
+      ValueNotifier(UpdateDownloadState.idle);
+
+  http.Client? _client;
+  bool _checked = false;
+
+  Future<void> checkForUpdate() async {
+    if (_checked) return;
+    _checked = true;
+
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final currentVersion = info.version;
+
+      final response = await http
+          .get(
+            Uri.parse(AppConfig.githubReleasesUrl),
+            headers: {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return;
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final tagName = (data['tag_name'] as String? ?? '').replaceFirst('v', '');
+      final changelog = data['body'] as String? ?? '';
+      final assets = data['assets'] as List? ?? [];
+
+      String apkUrl = '';
+      int apkSize = 0;
+      for (final asset in assets) {
+        if (asset is Map) {
+          final name = asset['name'] as String? ?? '';
+          if (name.toLowerCase().endsWith('.apk')) {
+            apkUrl = asset['browser_download_url'] as String? ?? '';
+            apkSize = (asset['size'] as num?)?.toInt() ?? 0;
+            break;
+          }
+        }
+      }
+
+      if (apkUrl.isEmpty) return;
+
+      if (_isNewerVersion(tagName, currentVersion)) {
+        updateAvailableNotifier.value = AppUpdateInfo(
+          version: tagName,
+          tagName: data['tag_name'] as String? ?? 'v$tagName',
+          changelog: changelog,
+          apkSizeBytes: apkSize,
+          apkDownloadUrl: apkUrl,
+        );
+      }
+    } catch (e) {
+      debugPrint('UpdateService.checkForUpdate error: $e');
+    }
+  }
+
+  bool _isNewerVersion(String remote, String current) {
+    try {
+      final r = remote.split('.').map(int.parse).toList();
+      final c = current.split('.').map(int.parse).toList();
+      final maxLen = r.length > c.length ? r.length : c.length;
+      for (int i = 0; i < maxLen; i++) {
+        final rv = i < r.length ? r[i] : 0;
+        final cv = i < c.length ? c[i] : 0;
+        if (rv > cv) return true;
+        if (rv < cv) return false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> downloadAndInstall() async {
+    final info = updateAvailableNotifier.value;
+    if (info == null) return;
+    if (downloadStateNotifier.value == UpdateDownloadState.downloading) return;
+
+    downloadStateNotifier.value = UpdateDownloadState.downloading;
+    downloadProgressNotifier.value = 0.0;
+
+    try {
+      _client = http.Client();
+      final request = http.Request('GET', Uri.parse(info.apkDownloadUrl));
+      final response = await _client!.send(request);
+
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/update.apk');
+      if (await file.exists()) await file.delete();
+
+      final total = response.contentLength ?? 0;
+      int received = 0;
+      final sink = file.openWrite();
+
+      await for (final chunk in response.stream) {
+        sink.add(chunk);
+        received += chunk.length;
+        if (total > 0) {
+          downloadProgressNotifier.value = received / total;
+        }
+      }
+
+      await sink.close();
+      downloadStateNotifier.value = UpdateDownloadState.done;
+      downloadProgressNotifier.value = 1.0;
+
+      await OpenFile.open(file.path);
+    } catch (e) {
+      debugPrint('UpdateService download error: $e');
+      downloadStateNotifier.value = UpdateDownloadState.failed;
+    }
+  }
+
+  void dismiss() {
+    _client?.close();
+    _client = null;
+    downloadStateNotifier.value = UpdateDownloadState.idle;
+    downloadProgressNotifier.value = 0.0;
+    updateAvailableNotifier.value = null;
+  }
+
+  void resetForNextCheck() {
+    _checked = false;
+  }
+}

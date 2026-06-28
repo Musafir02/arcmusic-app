@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../models/song.dart';
 import '../core/theme.dart';
 import 'song_tile.dart';
 import '../core/download_service.dart';
 
 class SongCard extends StatelessWidget {
-  final Song song;
+  final Map<String, dynamic> song;
   final VoidCallback? onTap;
 
   const SongCard({super.key, required this.song, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final imgLarge = song['imageLarge'] as String? ?? '';
+    final imgMedium = song['image'] as String? ?? '';
+    final id = song['id'] as String? ?? '';
+
     return GestureDetector(
       onTap: onTap,
       onLongPress: () {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          builder: (context) => SongContextSheet(song: song),
-        );
+        if (onTap != null) {
+          SongTile.showSongContext(context, song, onTap!);
+        }
       },
       child: Container(
         width: 150,
@@ -29,42 +30,27 @@ class SongCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusDefault),
               child: CachedNetworkImage(
-                imageUrl: song.imageLarge.isNotEmpty
-                    ? song.imageLarge
-                    : song.imageMedium,
+                imageUrl: imgLarge.isNotEmpty ? imgLarge : imgMedium,
                 width: 150,
                 height: 150,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
                   width: 150,
                   height: 150,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.music_note_rounded,
-                    color: AppTheme.accent,
-                    size: 40,
-                  ),
+                  color: AppTheme.surface,
+                  child: const Icon(Icons.music_note_rounded, color: AppTheme.accent, size: 40),
                 ),
                 placeholder: (_, __) => Container(
                   width: 150,
                   height: 150,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  color: AppTheme.surface,
                   child: const Center(
                     child: SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppTheme.accent,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accent),
                     ),
                   ),
                 ),
@@ -75,27 +61,19 @@ class SongCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    song.name,
+                    song['name'] as String? ?? '',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
                   ),
                 ),
                 ValueListenableBuilder<Set<String>>(
                   valueListenable: DownloadService().downloadedSongIdsNotifier,
                   builder: (context, downloadedIds, _) {
-                    if (downloadedIds.contains(song.id)) {
+                    if (downloadedIds.contains(id)) {
                       return const Padding(
                         padding: EdgeInsets.only(left: 4),
-                        child: Icon(
-                          Icons.check_circle_rounded,
-                          size: 13,
-                          color: Color(0xFFD97757),
-                        ),
+                        child: Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFFD97757)),
                       );
                     }
                     return const SizedBox.shrink();
@@ -105,13 +83,10 @@ class SongCard extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              song.artistNames,
+              song['artist'] as String? ?? '',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
-              ),
+              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
             ),
           ],
         ),

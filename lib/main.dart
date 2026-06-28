@@ -4,8 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme.dart';
 import 'core/player_service.dart';
-import 'core/liked_service.dart';
-import 'core/playlist_service.dart';
+import 'core/user_data_service.dart';
 import 'core/download_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_shell.dart';
@@ -15,8 +14,7 @@ void main() async {
   await Firebase.initializeApp();
   await initAudioService();
   await DownloadService().load();
-  await LikedService().load();
-  await PlaylistService().load();
+  await UserDataService().load();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -97,8 +95,7 @@ class _AuthGateState extends State<AuthGate> {
         if (user != null) {
           if (_lastUid != user.uid) {
             _lastUid = user.uid;
-            LikedService().load();
-            PlaylistService().load();
+            UserDataService().load();
           }
           return const AppShell();
         }

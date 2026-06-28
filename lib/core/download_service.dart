@@ -5,12 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/song.dart';
+import 'config.dart';
 
 enum DownloadStatus { pending, downloading, paused, completed, failed }
 
 class DownloadTask {
-  final Song song;
+  final Map<String, dynamic> song;
   double progress;
   DownloadStatus status;
 
@@ -25,9 +25,6 @@ class DownloadService {
   static final DownloadService _instance = DownloadService._();
   factory DownloadService() => _instance;
   DownloadService._();
-
-  static const String _idsKey = 'downloaded_song_ids';
-  static const String _listKey = 'downloaded_songs_list';
 
   final List<DownloadTask> _queue = [];
   Set<String> _downloadedSongIds = {};
@@ -51,16 +48,19 @@ class DownloadService {
   Future<void> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final idsList = prefs.getStringList(_idsKey) ?? [];
+      final idsList = prefs.getStringList(AppConfig.keyDownloadedSongIds) ?? [];
       _downloadedSongIds = idsList.toSet();
       downloadedSongIdsNotifier.value = Set.unmodifiable(_downloadedSongIds);
 
-      final jsonStr = prefs.getString(_listKey);
+      final jsonStr = prefs.getString(AppConfig.keyDownloadedSongsList);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final List raw = jsonDecode(jsonStr);
-        final songs = raw.map((e) => Song.fromJson(Map<String, dynamic>.from(e))).toList();
+        final songs = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
         for (final song in songs) {
-          _progressMap[song.id] = 1.0;
+          final id = song['id'] as String? ?? '';
+          if (id.isNotEmpty) {
+            _progressMap[id] = 1.0;
+          }
         }
         progressNotifier.value = Map<String, double>.from(_progressMap);
       }
@@ -86,9 +86,10 @@ class DownloadService {
     return null;
   }
 
-  void downloadSong(Song song) {
-    if (isSongDownloaded(song.id)) return;
-    if (_queue.any((task) => task.song.id == song.id)) return;
+  void downloadSong(Map<String, dynamic> song) {
+    final id = song['id'] as String? ?? '';
+    if (id.isEmpty || isSongDownloaded(id)) return;
+    if (_queue.any((task) => task.song['id'] == id)) return;
 
     if (_queue.isEmpty) {
       _activeBatchId = null;
@@ -106,15 +107,16 @@ class DownloadService {
     }
   }
 
-  void downloadPlaylist(List<Song> songs, String batchId) {
+  void downloadPlaylist(List<Map<String, dynamic>> songs, String batchId) {
     if (_queue.isEmpty) {
       _activeBatchId = batchId;
       activeBatchIdNotifier.value = batchId;
     }
     bool addedAny = false;
     for (final song in songs) {
-      if (isSongDownloaded(song.id)) continue;
-      if (_queue.any((task) => task.song.id == song.id)) continue;
+      final id = song['id'] as String? ?? '';
+      if (id.isEmpty || isSongDownloaded(id)) continue;
+      if (_queue.any((task) => task.song['id'] == id)) continue;
 
       _queue.add(DownloadTask(song: song));
       addedAny = true;
@@ -157,7 +159,7 @@ class DownloadService {
   }
 
   void cancelSong(String songId) {
-    final index = _queue.indexWhere((task) => task.song.id == songId);
+    final index = _queue.indexWhere((task) => task.song['id'] == songId);
     if (index == -1) return;
 
     final task = _queue[index];
@@ -190,13 +192,13 @@ class DownloadService {
       downloadedSongIdsNotifier.value = Set.unmodifiable(_downloadedSongIds);
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_idsKey, _downloadedSongIds.toList());
+      await prefs.setStringList(AppConfig.keyDownloadedSongIds, _downloadedSongIds.toList());
 
-      final jsonStr = prefs.getString(_listKey);
+      final jsonStr = prefs.getString(AppConfig.keyDownloadedSongsList);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final List list = jsonDecode(jsonStr);
         list.removeWhere((e) => e['id'] == songId);
-        await prefs.setString(_listKey, jsonEncode(list));
+        await prefs.setString(AppConfig.keyDownloadedSongsList, jsonEncode(list));
       }
 
       _progressMap.remove(songId);
@@ -259,7 +261,9 @@ class DownloadService {
 
   Future<void> _downloadTask(DownloadTask task) async {
     final song = task.song;
-    if (song.downloadUrl == null || song.downloadUrl!.isEmpty) {
+    final id = song['id'] as String? ?? '';
+    final downloadUrl = song['downloadUrl'] as String? ?? '';
+    if (id.isEmpty || downloadUrl.isEmpty) {
       task.status = DownloadStatus.failed;
       _notify();
       return;
@@ -270,7 +274,7 @@ class DownloadService {
       task.progress = 0.0;
       _notify();
 
-      final response = await _client!.send(http.Request('GET', Uri.parse(song.downloadUrl!)));
+      final response = await _client!.send(http.Request('GET', Uri.parse(downloadUrl)));
       if (response.statusCode != 200) {
         throw Exception('Status code ${response.statusCode}');
       }
@@ -284,8 +288,8 @@ class DownloadService {
         await downloadsDir.create(recursive: true);
       }
 
-      final file = File('${downloadsDir.path}/${song.id}.mp3');
-      final tempFile = File('${downloadsDir.path}/${song.id}.mp3.tmp');
+      final file = File('${downloadsDir.path}/$id.mp3');
+      final tempFile = File('${downloadsDir.path}/$id.mp3.tmp');
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
@@ -304,7 +308,7 @@ class DownloadService {
         receivedBytes += chunk.length;
         if (totalBytes > 0) {
           task.progress = receivedBytes / totalBytes;
-          _progressMap[song.id] = task.progress;
+          _progressMap[id] = task.progress;
           _notifyProgress();
         }
       }
@@ -318,8 +322,8 @@ class DownloadService {
 
       task.status = DownloadStatus.completed;
       task.progress = 1.0;
-      _progressMap[song.id] = 1.0;
-      _downloadedSongIds.add(song.id);
+      _progressMap[id] = 1.0;
+      _downloadedSongIds.add(id);
       await _saveDownloadedSongMetadata(song);
       _notifyProgress();
       _notify();
@@ -332,45 +336,20 @@ class DownloadService {
     }
   }
 
-  Future<void> _saveDownloadedSongMetadata(Song song) async {
+  Future<void> _saveDownloadedSongMetadata(Map<String, dynamic> song) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_idsKey, _downloadedSongIds.toList());
+      await prefs.setStringList(AppConfig.keyDownloadedSongIds, _downloadedSongIds.toList());
       downloadedSongIdsNotifier.value = Set.unmodifiable(_downloadedSongIds);
 
-      final jsonStr = prefs.getString(_listKey);
+      final jsonStr = prefs.getString(AppConfig.keyDownloadedSongsList);
       List<dynamic> list = [];
       if (jsonStr != null && jsonStr.isNotEmpty) {
         list = jsonDecode(jsonStr);
       }
-      if (!list.any((e) => e['id'] == song.id)) {
-        list.add({
-          'id': song.id,
-          'name': song.name,
-          'year': song.year,
-          'duration': song.duration,
-          'playCount': song.playCount,
-          'language': song.language,
-          'album': {
-            'id': song.albumId,
-            'name': song.albumName,
-          },
-          'artists': {
-            'primary': song.artistIds.map((id) {
-              final names = song.artistNames.split(', ');
-              final idx = song.artistIds.indexOf(id);
-              final name = idx < names.length ? names[idx] : '';
-              return {'id': id, 'name': name};
-            }).toList()
-          },
-          'image': [
-            {'url': song.imageSmall},
-            {'url': song.imageMedium},
-            {'url': song.imageLarge},
-          ],
-          'downloadUrl': song.downloadUrl,
-        });
-        await prefs.setString(_listKey, jsonEncode(list));
+      if (!list.any((e) => e['id'] == song['id'])) {
+        list.add(song);
+        await prefs.setString(AppConfig.keyDownloadedSongsList, jsonEncode(list));
       }
     } catch (e) {
       debugPrint('Error saving download metadata: $e');

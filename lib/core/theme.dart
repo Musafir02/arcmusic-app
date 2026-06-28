@@ -7,6 +7,22 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF888888);
   static const Color surface = Color(0xFF1A1918);
 
+  static const double radiusDefault = 12.0;
+  static const double radiusCard = 16.0;
+  static const double radiusSheet = 28.0;
+
+  static const double padDefault = 16.0;
+  static const double spaceMedium = 12.0;
+  static const double spaceLarge = 20.0;
+
+  static const double actionButtonHeight = 46.0;
+
+  static final BoxShadow cardShadow = BoxShadow(
+    color: Colors.black.withValues(alpha: 0.15),
+    blurRadius: 10,
+    offset: const Offset(0, 4),
+  );
+
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
@@ -56,7 +72,7 @@ class AppTheme {
           backgroundColor: accent,
           foregroundColor: background,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(radiusDefault),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         ),
@@ -71,7 +87,7 @@ class AppTheme {
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radiusDefault),
         ),
       ),
       useMaterial3: true,

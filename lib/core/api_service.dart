@@ -3,14 +3,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/song.dart';
+import 'config.dart';
 
 class ApiService {
-  static const String _baseUrl = 'https://arcmusic-api.vercel.app';
-  static const String _spotifyApiUrl = 'https://arcmusic-spotify.vercel.app';
-  static const int _lyricsCacheMaxSize = 50;
-  static const Duration _httpTimeout = Duration(seconds: 10);
-  static const Duration _spotifyTimeout = Duration(seconds: 30);
+  static final ApiService _instance = ApiService._();
+  factory ApiService() => _instance;
+  ApiService._();
 
   static final LinkedHashMap<String, LyricsResult> _lyricsCache =
       LinkedHashMap();
@@ -23,23 +21,89 @@ class ApiService {
 
   static void _putCache(String key, LyricsResult val) {
     _lyricsCache.remove(key);
-    if (_lyricsCache.length >= _lyricsCacheMaxSize) {
+    if (_lyricsCache.length >= AppConfig.lyricsCacheMaxSize) {
       _lyricsCache.remove(_lyricsCache.keys.first);
     }
     _lyricsCache[key] = val;
   }
 
-  Future<List<Song>> searchSongs(String query,
+  Map<String, dynamic> _parseApiSong(Map<String, dynamic> s) {
+    final imageRaw = s['image'];
+    final images = imageRaw is List ? imageRaw : const [];
+
+    final artistsRaw = s['artists']?['primary'];
+    final artists = artistsRaw is List ? artistsRaw : const [];
+
+    final artistNamesList = artists
+        .map((a) => (a is Map && a['name'] != null) ? a['name'].toString() : '')
+        .where((n) => n.isNotEmpty)
+        .toList();
+
+    final dlRaw = s['downloadUrl'];
+    final downloadUrls = dlRaw is List ? dlRaw : const [];
+
+    String bestDownload = '';
+    for (final dl in downloadUrls.reversed) {
+      if (dl is Map && dl['url'] != null) {
+        bestDownload = dl['url'].toString();
+        break;
+      }
+    }
+
+    String getImageUrl(int index) {
+      if (index >= 0 && index < images.length) {
+        final item = images[index];
+        if (item is Map && item['url'] != null) {
+          return item['url'].toString();
+        }
+      }
+      return '';
+    }
+
+    String cleanHtml(String text) {
+      return text
+          .replaceAll('&quot;', '"')
+          .replaceAll('&amp;', '&')
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&#039;', "'");
+    }
+
+    return {
+      'id': s['id']?.toString() ?? '',
+      'name': cleanHtml(s['name']?.toString() ?? ''),
+      'year': s['year']?.toString() ?? '',
+      'duration': s['duration'] as int? ?? 0,
+      'playCount': s['playCount'] as int? ?? 0,
+      'language': s['language']?.toString() ?? '',
+      'album': cleanHtml(s['album']?['name']?.toString() ?? ''),
+      'albumId': s['album']?['id']?.toString() ?? '',
+      'artist': artistNamesList.join(', '),
+      'artistIds': artists
+          .map((a) => (a is Map && a['id'] != null) ? a['id'].toString() : '')
+          .where((id) => id.isNotEmpty)
+          .toList(),
+      'imageSmall': getImageUrl(0),
+      'image': getImageUrl(1),
+      'imageLarge': getImageUrl(2),
+      'downloadUrl': bestDownload,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> searchSongs(String query,
       {int page = 1, int limit = 15}) async {
     final uri = Uri.parse(
-        '$_baseUrl/api/search/songs?query=${Uri.encodeComponent(query)}&page=$page&limit=$limit');
+        '${AppConfig.apiBaseUrl}/api/search/songs?query=${Uri.encodeComponent(query)}&page=$page&limit=$limit');
     try {
-      final response = await http.get(uri).timeout(_httpTimeout);
+      final response = await http.get(uri).timeout(AppConfig.httpTimeout);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           final results = data['data']['results'] as List? ?? [];
-          return results.map((s) => Song.fromJson(s)).toList();
+          return results
+              .whereType<Map>()
+              .map((s) => _parseApiSong(Map<String, dynamic>.from(s)))
+              .toList();
         }
       }
     } catch (e, s) {
@@ -48,17 +112,20 @@ class ApiService {
     return [];
   }
 
-  Future<List<Song>> getSongSuggestions(String songId,
+  Future<List<Map<String, dynamic>>> getSongSuggestions(String songId,
       {int limit = 10}) async {
     final uri =
-        Uri.parse('$_baseUrl/api/songs/$songId/suggestions?limit=$limit');
+        Uri.parse('${AppConfig.apiBaseUrl}/api/songs/$songId/suggestions?limit=$limit');
     try {
-      final response = await http.get(uri).timeout(_httpTimeout);
+      final response = await http.get(uri).timeout(AppConfig.httpTimeout);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           final results = data['data'] as List? ?? [];
-          return results.map((s) => Song.fromJson(s)).toList();
+          return results
+              .whereType<Map>()
+              .map((s) => _parseApiSong(Map<String, dynamic>.from(s)))
+              .toList();
         }
       }
     } catch (e, s) {
@@ -67,11 +134,30 @@ class ApiService {
     return [];
   }
 
+  Future<Map<String, dynamic>?> getSongDetails(String songId) async {
+    final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/songs?id=$songId');
+    try {
+      final response = await http.get(uri).timeout(AppConfig.httpTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final list = data['data'] as List? ?? [];
+          if (list.isNotEmpty && list.first is Map) {
+            return _parseApiSong(Map<String, dynamic>.from(list.first as Map));
+          }
+        }
+      }
+    } catch (e, s) {
+      debugPrint('getSongDetails error: $e\n$s');
+    }
+    return null;
+  }
+
   Future<SpotifyPlaylistResult?> fetchSpotifyPlaylist(String spotifyUrl) async {
     final uri = Uri.parse(
-        '$_spotifyApiUrl/api/playlist?url=${Uri.encodeComponent(spotifyUrl)}');
+        '${AppConfig.spotifyApiUrl}/api/playlist?url=${Uri.encodeComponent(spotifyUrl)}');
     try {
-      final response = await http.get(uri).timeout(_spotifyTimeout);
+      final response = await http.get(uri).timeout(AppConfig.spotifyTimeout);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final tracks = (data['tracks'] as List? ?? [])
@@ -98,7 +184,7 @@ class ApiService {
     }
   }
 
-  Future<Song?> matchSpotifyTrack(SpotifyTrack track) async {
+  Future<Map<String, dynamic>?> matchSpotifyTrack(SpotifyTrack track) async {
     final targetSecs = track.durationMs / 1000.0;
     final cleanName = _cleanTitle(track.name);
     final primaryArtist =
@@ -112,35 +198,37 @@ class ApiService {
     ].where((q) => q.isNotEmpty).toList();
 
     final seen = <String>{};
-    final candidates = <Song>[];
+    final candidates = <Map<String, dynamic>>[];
 
     for (final query in queries) {
       if (!seen.add(query)) continue;
       try {
         final results = await searchSongs(query, limit: 8);
         for (final s in results) {
-          if (!candidates.any((c) => c.id == s.id)) candidates.add(s);
+          if (!candidates.any((c) => c['id'] == s['id'])) candidates.add(s);
         }
       } catch (_) {}
       if (candidates.length >= 15) break;
     }
 
-    Song? best;
+    Map<String, dynamic>? best;
     double bestScore = double.negativeInfinity;
 
     for (final song in candidates) {
-      final songClean = _cleanTitle(song.name.toLowerCase());
+      final songClean = _cleanTitle((song['name'] as String? ?? '').toLowerCase());
       final trackClean = cleanName.toLowerCase();
 
       final nameSim = _stringSimilarity(songClean, trackClean);
       if (nameSim < 0.38) continue;
 
+      final duration = song['duration'] as int? ?? 0;
       final durDiff =
-          targetSecs > 0 ? (song.duration - targetSecs).abs() : 0.0;
+          targetSecs > 0 ? (duration - targetSecs).abs() : 0.0;
       final durOk = targetSecs == 0 || durDiff <= 30;
       if (!durOk && nameSim < 0.82) continue;
 
-      final artistBonus = track.artists.any((a) => song.artistNames
+      final artistNames = song['artist'] as String? ?? '';
+      final artistBonus = track.artists.any((a) => artistNames
                   .toLowerCase()
                   .contains(a.toLowerCase().split(' ').first) &&
               a.isNotEmpty)
@@ -261,7 +349,7 @@ class ApiService {
         final lrcUri = Uri.https('lrclib.net', '/api/get', params);
         final lrcResponse = await http.get(lrcUri, headers: {
           'User-Agent': 'ArcMusic/1.0 (https://github.com/Musafir02/arcmusic)',
-        }).timeout(_httpTimeout);
+        }).timeout(AppConfig.httpTimeout);
 
         if (lrcResponse.statusCode == 200) {
           final lrcData = jsonDecode(lrcResponse.body);
@@ -278,7 +366,7 @@ class ApiService {
         });
         final searchResponse = await http.get(searchUri, headers: {
           'User-Agent': 'ArcMusic/1.0 (https://github.com/Musafir02/arcmusic)',
-        }).timeout(_httpTimeout);
+        }).timeout(AppConfig.httpTimeout);
 
         if (searchResponse.statusCode == 200) {
           final decoded = jsonDecode(searchResponse.body);
@@ -399,4 +487,44 @@ class SpotifyPlaylistResult {
     required this.owner,
     required this.tracks,
   });
+}
+
+class LrcLine {
+  final Duration timestamp;
+  final String text;
+  LrcLine(this.timestamp, this.text);
+}
+
+List<LrcLine> parseLrc(String lrc) {
+  final lines = <LrcLine>[];
+  final regex = RegExp(r'\[(\d{2}):(\d{2})(?:\.(\d+))?\]\s*(.*)');
+
+  for (final line in lrc.split('\n')) {
+    final match = regex.firstMatch(line.trim());
+    if (match != null) {
+      final min = int.parse(match.group(1)!);
+      final sec = int.parse(match.group(2)!);
+      final msStr = match.group(3);
+      int ms = 0;
+      if (msStr != null) {
+        if (msStr.length == 1) {
+          ms = int.parse(msStr) * 100;
+        } else if (msStr.length == 2) {
+          ms = int.parse(msStr) * 10;
+        } else {
+          ms = int.parse(msStr.substring(0, 3));
+        }
+      }
+      final text = match.group(4)?.trim() ?? '';
+      if (text.isNotEmpty) {
+        lines.add(LrcLine(
+          Duration(minutes: min, seconds: sec, milliseconds: ms),
+          text,
+        ));
+      }
+    }
+  }
+
+  lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  return lines;
 }

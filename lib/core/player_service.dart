@@ -2,9 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
-import '../models/song.dart';
 import 'api_service.dart';
-import 'liked_service.dart';
+import 'user_data_service.dart';
 import 'taste_service.dart';
 import 'download_service.dart';
 
@@ -31,20 +30,20 @@ class AudioPlayerHandler extends BaseAudioHandler
   final TasteService _taste = TasteService();
   DateTime? _songStartTime;
 
-  Song? _currentSong;
-  List<Song>? _currentPlaylist;
+  Map<String, dynamic>? _currentSong;
+  List<Map<String, dynamic>>? _currentPlaylist;
   int _currentIndex = -1;
   bool _isPlaylistMode = false;
   bool _isRepeat = false;
   bool _isLiked = false;
   String? _preloadedSongId;
 
-  final ValueNotifier<Song?> currentSongNotifier = ValueNotifier(null);
+  final ValueNotifier<Map<String, dynamic>?> currentSongNotifier = ValueNotifier(null);
   final ValueNotifier<bool> isRepeatNotifier = ValueNotifier(false);
   final ValueNotifier<bool> isLikedNotifier = ValueNotifier(false);
   final ValueNotifier<String?> playbackErrorNotifier = ValueNotifier(null);
 
-  Song? get currentSong => _currentSong;
+  Map<String, dynamic>? get currentSong => _currentSong;
   bool get isRepeat => _isRepeat;
   bool get isLiked => _isLiked;
 
@@ -76,9 +75,9 @@ class AudioPlayerHandler extends BaseAudioHandler
       }
     });
 
-    LikedService().likedNotifier.addListener(() {
+    UserDataService().likedNotifier.addListener(() {
       if (_currentSong != null) {
-        final liked = LikedService().isLiked(_currentSong!.id);
+        final liked = UserDataService().isLiked(_currentSong!['id'] as String);
         _isLiked = liked;
         isLikedNotifier.value = liked;
       }
@@ -144,40 +143,65 @@ class AudioPlayerHandler extends BaseAudioHandler
     ));
   }
 
-  Future<bool> _playSongInternal(Song song, {bool showErrorMessage = true}) async {
-    if (song.downloadUrl == null || song.downloadUrl!.isEmpty) return false;
+  Future<bool> _playSongInternal(Map<String, dynamic> song, {bool showErrorMessage = true}) async {
+    final id = song['id'] as String? ?? '';
+    if (id.isEmpty) return false;
+
+    String downloadUrl = song['downloadUrl'] as String? ?? '';
+    Map<String, dynamic> resolvedSong = song;
+
+    if (downloadUrl.isEmpty) {
+      try {
+        final fresh = await _api.getSongDetails(id);
+        if (fresh != null && (fresh['downloadUrl'] as String? ?? '').isNotEmpty) {
+          downloadUrl = fresh['downloadUrl'] as String;
+          resolvedSong = fresh;
+        }
+      } catch (_) {}
+    }
+
+    if (downloadUrl.isEmpty) {
+      if (showErrorMessage) {
+        playbackErrorNotifier.value = 'Cannot play: No stream URL available.';
+        playbackErrorNotifier.value = null;
+      }
+      return false;
+    }
 
     final oldSong = _currentSong;
     final oldStartTime = _songStartTime;
     final oldLiked = _isLiked;
 
-    _currentSong = song;
+    _currentSong = resolvedSong;
     _songStartTime = DateTime.now();
-    _isLiked = LikedService().isLiked(song.id);
-    currentSongNotifier.value = song;
+    _isLiked = UserDataService().isLiked(id);
+    currentSongNotifier.value = resolvedSong;
     isLikedNotifier.value = _isLiked;
 
-    final artUri = song.imageLarge.isNotEmpty
-        ? Uri.parse(song.imageLarge)
-        : (song.imageMedium.isNotEmpty
-            ? Uri.parse(song.imageMedium)
+    final imgLarge = resolvedSong['imageLarge'] as String? ?? '';
+    final imgMedium = resolvedSong['image'] as String? ?? '';
+    final artUri = imgLarge.isNotEmpty
+        ? Uri.parse(imgLarge)
+        : (imgMedium.isNotEmpty
+            ? Uri.parse(imgMedium)
             : null);
 
+    final duration = resolvedSong['duration'] as int? ?? 0;
     mediaItem.add(MediaItem(
-      id: song.id,
-      title: song.name,
-      artist: song.artistNames,
-      album: song.albumName,
-      duration: Duration(seconds: song.duration),
+      id: id,
+      title: resolvedSong['name'] as String? ?? '',
+      artist: resolvedSong['artist'] as String? ?? '',
+      album: resolvedSong['album'] as String? ?? '',
+      duration: Duration(seconds: duration),
       artUri: artUri,
     ));
 
     try {
-      final localPath = await DownloadService().getDownloadedPath(song.id);
+      final localPath = await DownloadService().getDownloadedPath(id);
       if (localPath != null) {
         await _player.setAudioSource(AudioSource.file(localPath));
       } else {
-        await _player.setUrl(song.downloadUrl!);
+        await _player.setUrl(downloadUrl);
       }
       await _player.play();
 
@@ -190,11 +214,11 @@ class AudioPlayerHandler extends BaseAudioHandler
         }
       }
 
-      _taste.onSongPlayed(song);
+      _taste.onSongPlayed(resolvedSong);
       if (_isPlaylistMode) {
         _preloadNextSong();
       } else {
-        _loadSuggestions(song.id).then((_) {
+        _loadSuggestions(id).then((_) {
           _preloadNextSong();
         });
       }
@@ -202,7 +226,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     } catch (e, s) {
       debugPrint('Playback error: $e\n$s');
       if (showErrorMessage) {
-        final isDownloaded = DownloadService().isSongDownloaded(song.id);
+        final isDownloaded = DownloadService().isSongDownloaded(id);
         if (!isDownloaded) {
           playbackErrorNotifier.value = 'Offline: This song is not downloaded.';
           playbackErrorNotifier.value = null;
@@ -211,24 +235,27 @@ class AudioPlayerHandler extends BaseAudioHandler
           playbackErrorNotifier.value = null;
         }
       }
-      if (_currentSong?.id == song.id) {
+      if (_currentSong?['id'] == id) {
         _currentSong = oldSong;
         _songStartTime = oldStartTime;
         _isLiked = oldLiked;
         currentSongNotifier.value = oldSong;
         isLikedNotifier.value = oldLiked;
         if (oldSong != null) {
-          final oldArt = oldSong.imageLarge.isNotEmpty
-              ? Uri.parse(oldSong.imageLarge)
-              : (oldSong.imageMedium.isNotEmpty
-                  ? Uri.parse(oldSong.imageMedium)
+          final oldImgLarge = oldSong['imageLarge'] as String? ?? '';
+          final oldImgMedium = oldSong['image'] as String? ?? '';
+          final oldArt = oldImgLarge.isNotEmpty
+              ? Uri.parse(oldImgLarge)
+              : (oldImgMedium.isNotEmpty
+                  ? Uri.parse(oldImgMedium)
                   : null);
+          final oldDur = oldSong['duration'] as int? ?? 0;
           mediaItem.add(MediaItem(
-            id: oldSong.id,
-            title: oldSong.name,
-            artist: oldSong.artistNames,
-            album: oldSong.albumName,
-            duration: Duration(seconds: oldSong.duration),
+            id: oldSong['id'] as String? ?? '',
+            title: oldSong['name'] as String? ?? '',
+            artist: oldSong['artist'] as String? ?? '',
+            album: oldSong['album'] as String? ?? '',
+            duration: Duration(seconds: oldDur),
             artUri: oldArt,
           ));
         } else {
@@ -239,10 +266,11 @@ class AudioPlayerHandler extends BaseAudioHandler
     }
   }
 
-  Future<void> playSong(Song song, {List<Song>? playlist}) async {
+  Future<void> playSong(Map<String, dynamic> song, {List<Map<String, dynamic>>? playlist}) async {
+    final id = song['id'] as String? ?? '';
     if (playlist != null && playlist.isNotEmpty) {
-      _currentPlaylist = List<Song>.from(playlist);
-      _currentIndex = _currentPlaylist!.indexWhere((s) => s.id == song.id);
+      _currentPlaylist = List<Map<String, dynamic>>.from(playlist);
+      _currentIndex = _currentPlaylist!.indexWhere((s) => s['id'] == id);
       if (_currentIndex == -1) {
         _currentPlaylist!.insert(0, song);
         _currentIndex = 0;
@@ -256,40 +284,45 @@ class AudioPlayerHandler extends BaseAudioHandler
     await _playSongInternal(song);
   }
 
-  void restoreSong(Song song) {
+  void restoreSong(Map<String, dynamic> song) {
+    final id = song['id'] as String? ?? '';
     _currentSong = song;
     _currentPlaylist = [song];
     _currentIndex = 0;
     _isPlaylistMode = false;
     _songStartTime = DateTime.now();
-    _isLiked = LikedService().isLiked(song.id);
+    _isLiked = UserDataService().isLiked(id);
     currentSongNotifier.value = song;
     isLikedNotifier.value = _isLiked;
 
-    final artUri = song.imageLarge.isNotEmpty
-        ? Uri.parse(song.imageLarge)
-        : (song.imageMedium.isNotEmpty
-            ? Uri.parse(song.imageMedium)
+    final imgLarge = song['imageLarge'] as String? ?? '';
+    final imgMedium = song['image'] as String? ?? '';
+    final artUri = imgLarge.isNotEmpty
+        ? Uri.parse(imgLarge)
+        : (imgMedium.isNotEmpty
+            ? Uri.parse(imgMedium)
             : null);
 
+    final duration = song['duration'] as int? ?? 0;
     mediaItem.add(MediaItem(
-      id: song.id,
-      title: song.name,
-      artist: song.artistNames,
-      album: song.albumName,
-      duration: Duration(seconds: song.duration),
+      id: id,
+      title: song['name'] as String? ?? '',
+      artist: song['artist'] as String? ?? '',
+      album: song['album'] as String? ?? '',
+      duration: Duration(seconds: duration),
       artUri: artUri,
     ));
 
-    if (song.downloadUrl != null && song.downloadUrl!.isNotEmpty) {
-      DownloadService().getDownloadedPath(song.id).then((localPath) {
+    final downloadUrl = song['downloadUrl'] as String? ?? '';
+    if (downloadUrl.isNotEmpty) {
+      DownloadService().getDownloadedPath(id).then((localPath) {
         if (localPath != null) {
           _player.setAudioSource(AudioSource.file(localPath)).catchError((e) {
             debugPrint('restoreSong preload error: $e');
             return null;
           });
         } else {
-          _player.setUrl(song.downloadUrl!).catchError((e) {
+          _player.setUrl(downloadUrl).catchError((e) {
             debugPrint('restoreSong preload error: $e');
             return null;
           });
@@ -302,10 +335,10 @@ class AudioPlayerHandler extends BaseAudioHandler
     if (_isPlaylistMode) return;
     try {
       final suggestions = await _api.getSongSuggestions(songId, limit: 10);
-      final valid = suggestions.where((s) => s.downloadUrl != null).toList();
+      final valid = suggestions.where((s) => s['downloadUrl'] != null).toList();
       final ranked = _taste.rankSuggestions(valid);
       for (final s in ranked) {
-        if (_currentPlaylist != null && !_currentPlaylist!.any((x) => x.id == s.id)) {
+        if (_currentPlaylist != null && !_currentPlaylist!.any((x) => x['id'] == s['id'])) {
           _currentPlaylist!.add(s);
         }
       }
@@ -346,7 +379,10 @@ class AudioPlayerHandler extends BaseAudioHandler
           wrappedOnce = true;
         } else if (_currentSong != null) {
           final oldLength = _currentPlaylist!.length;
-          await _loadSuggestions(_currentSong!.id);
+          final currentId = _currentSong!['id'] as String? ?? '';
+          if (currentId.isNotEmpty) {
+            await _loadSuggestions(currentId);
+          }
           if (_currentPlaylist!.length > oldLength) {
             _currentIndex++;
           } else {
@@ -415,8 +451,10 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   void toggleLike() {
     if (_currentSong != null) {
-      final wasLiked = LikedService().isLiked(_currentSong!.id);
-      LikedService().toggleLike(_currentSong!);
+      final id = _currentSong!['id'] as String? ?? '';
+      if (id.isEmpty) return;
+      final wasLiked = UserDataService().isLiked(id);
+      UserDataService().toggleLike(_currentSong!);
       if (!wasLiked) {
         _taste.onSongLiked(_currentSong!);
       }
@@ -448,21 +486,28 @@ class AudioPlayerHandler extends BaseAudioHandler
     _preloadSongAndDetails(nextSong);
   }
 
-  void _preloadSongAndDetails(Song nextSong) {
-    if (_preloadedSongId == nextSong.id) return;
-    _preloadedSongId = nextSong.id;
+  void _preloadSongAndDetails(Map<String, dynamic> nextSong) {
+    final id = nextSong['id'] as String? ?? '';
+    if (id.isEmpty || _preloadedSongId == id) return;
+    _preloadedSongId = id;
+
+    final name = nextSong['name'] as String? ?? '';
+    final artist = nextSong['artist'] as String? ?? '';
+    final album = nextSong['album'] as String? ?? '';
+    final duration = nextSong['duration'] as int? ?? 0;
 
     _api.getLyrics(
-      nextSong.id,
-      trackName: nextSong.name,
-      artistName: nextSong.artistNames,
-      albumName: nextSong.albumName,
-      durationSecs: nextSong.duration,
+      id,
+      trackName: name,
+      artistName: artist,
+      albumName: album,
+      durationSecs: duration,
     ).catchError((e) => LyricsResult());
 
-    if (nextSong.downloadUrl != null && nextSong.downloadUrl!.isNotEmpty) {
-      _preloadPlayer.setUrl(nextSong.downloadUrl!).catchError((e) {
-        debugPrint('Preload error for ${nextSong.id}: $e');
+    final downloadUrl = nextSong['downloadUrl'] as String? ?? '';
+    if (downloadUrl.isNotEmpty) {
+      _preloadPlayer.setUrl(downloadUrl).catchError((e) {
+        debugPrint('Preload error for $id: $e');
         return null;
       });
     }
