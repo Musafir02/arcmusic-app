@@ -37,7 +37,7 @@ class NotificationBanner extends StatefulWidget {
 class _NotificationBannerState extends State<NotificationBanner>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<Offset> _slide;
+  late Animation<double> _scale;
   late Animation<double> _fade;
   Timer? _timer;
 
@@ -46,20 +46,17 @@ class _NotificationBannerState extends State<NotificationBanner>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 400),
     );
-    _slide = Tween<Offset>(
-      begin: const Offset(0, -1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _scale = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
     _fade = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
     _controller.forward();
 
-    if (!widget.isError) {
-      _timer = Timer(const Duration(seconds: 3), _onDismiss);
-    }
+    _timer = Timer(const Duration(seconds: 3), _onDismiss);
   }
 
   void _onDismiss() {
@@ -79,75 +76,76 @@ class _NotificationBannerState extends State<NotificationBanner>
 
   @override
   Widget build(BuildContext context) {
-    return SlideTransition(
-      position: _slide,
-      child: FadeTransition(
-        opacity: _fade,
-        child: GestureDetector(
-          onTap: _onDismiss,
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 12,
-              bottom: 14,
-              left: 20,
-              right: 20,
-            ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: widget.isError
-                    ? [
-                        const Color(0xFFE53935).withValues(alpha: 0.15),
-                        AppTheme.surface,
-                      ]
-                    : [
-                        AppTheme.accent.withValues(alpha: 0.15),
-                        AppTheme.surface,
-                      ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              border: Border(
-                bottom: BorderSide(
-                  color: widget.isError
-                      ? const Color(0xFFE53935).withValues(alpha: 0.25)
-                      : AppTheme.accent.withValues(alpha: 0.25),
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: widget.isError
-                        ? const Color(0xFFE53935).withValues(alpha: 0.2)
-                        : AppTheme.accent.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
+    final topPadding = MediaQuery.of(context).padding.top;
+    final accentColor = widget.isError ? const Color(0xFFE53935) : AppTheme.accent;
+
+    return Padding(
+      padding: EdgeInsets.only(top: topPadding + 8),
+      child: Center(
+        child: ScaleTransition(
+          scale: _scale,
+          child: FadeTransition(
+            opacity: _fade,
+            child: GestureDetector(
+              onTap: _onDismiss,
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
+                  _onDismiss();
+                }
+              },
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 320),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(50),
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.15),
                   ),
-                  child: Icon(
-                    widget.isError ? Icons.warning_amber_rounded : Icons.check_rounded,
-                    color: widget.isError ? const Color(0xFFE53935) : AppTheme.accent,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.message,
-                    style: TextStyle(
-                      color: widget.isError ? const Color(0xFFE53935) : AppTheme.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
                     ),
-                  ),
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                    ),
+                  ],
                 ),
-                GestureDetector(
-                  onTap: _onDismiss,
-                  child: const Icon(Icons.close_rounded, color: AppTheme.textSecondary, size: 18),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        widget.isError ? Icons.close_rounded : Icons.check_rounded,
+                        color: accentColor,
+                        size: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        widget.message,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
