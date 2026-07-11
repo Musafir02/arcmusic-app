@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArcMusic — Premium Audio Stream Player</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo-area">
+                <span class="logo-text">ArcMusic</span>
+            </div>
+        </div>
+    </header>
+    <main>
+        <section class="hero-section">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <div class="badge-container">
+                        <span class="version-badge" id="version-badge">Discovering ArcMusic</span>
+                    </div>
+                    <h1>Cinematic music player designed with precision.</h1>
+                    <p>Experience zero-latency audio streaming, custom playlist orchestration, Spotify migrations, and a gorgeous dark theme designed for native performance.</p>
+                    <div class="cta-actions">
+                        <a href="#download" class="btn-primary">Download App</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="features" class="features-section">
+            <div class="section-title">
+                <h2>Features</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">&#9835;</div>
+                    <h3>Hi-Fi Audio Stream</h3>
+                    <p>Lossless decoders, low battery drain, and instant background playback handling.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#8644;</div>
+                    <h3>Spotify Import</h3>
+                    <p>Paste playlist URLs to search, parse, and queue songs from our metadata provider.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#9734;</div>
+                    <h3>Personalization</h3>
+                    <p>Beautiful dark theme with orange ember accents and user profile configuration.</p>
+                </div>
+            </div>
+        </section>
+        <section id="showcase" class="showcase-section">
+            <div class="section-title">
+                <h2>App Interface Showcase</h2>
+            </div>
+            <div class="carousel-container">
+                <button class="carousel-nav prev" id="carousel-prev">&#8592;</button>
+                <div class="carousel-track-wrapper" id="carousel-wrapper">
+                    <div class="carousel-track" id="carousel-track">
+                        <div class="carousel-slide">
+                            <div class="mockup-container">
+                                <img src="home.png" alt="Home Screen" class="screenshot-img">
+                            </div>
+                            <div class="slide-info">
+                                <h3>Discover Hub</h3>
+                                <p>Browse recent streams, top charts, search suggestions, and explore personalized home feed widgets.</p>
+                            </div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container">
+                                <img src="player.png" alt="Player Screen" class="screenshot-img">
+                            </div>
+                            <div class="slide-info">
+                                <h3>Immersive Player</h3>
+                                <p>Detailed waveform scrubber, lyrics sync, playlist song selection, and background audio service control.</p>
+                            </div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container">
+                                <img src="playlist.png" alt="Playlists Screen" class="screenshot-img">
+                            </div>
+                            <div class="slide-info">
+                                <h3>Local Playlists</h3>
+                                <p>Keep your collections organized. Group tracks into customizable playback directories.</p>
+                            </div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container">
+                                <img src="playlistdetail.png" alt="Playlist Detail Screen" class="screenshot-img">
+                            </div>
+                            <div class="slide-info">
+                                <h3>Playlist Detail</h3>
+                                <p>Manage, reorder, play, search, and delete songs within each unique playlist dynamically.</p>
+                            </div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container">
+                                <img src="spotifyimport.png" alt="Spotify Import" class="screenshot-img">
+                            </div>
+                            <div class="slide-info">
+                                <h3>Spotify Import</h3>
+                                <p>Easily import public Spotify playlists directly to create local metadata and play tracks.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="carousel-nav next" id="carousel-next">&#8594;</button>
+            </div>
+            <div class="carousel-dots" id="carousel-dots"></div>
+        </section>
+        <section id="download" class="download-section">
+            <div class="section-title">
+                <h2>Choose Your Device</h2>
+            </div>
+            <div class="download-grid">
+                <div class="download-card">
+                    <h3>Modern Devices</h3>
+                    <p>Designed for 64-bit Android smartphones. Optimizes system libraries for better execution speed and memory management.</p>
+                    <div class="device-spec">ARM64-v8a Architecture</div>
+                    <a href="#" id="download-arm64" class="btn-primary">Download 64-bit APK</a>
+                </div>
+                <div class="download-card">
+                    <h3>Older Devices</h3>
+                    <p>Designed for older or 32-bit Android hardware. Compatible with older processor architectures.</p>
+                    <div class="device-spec">ARMEABI-v7a Architecture</div>
+                    <a href="#" id="download-arm7" class="btn-primary">Download 32-bit APK</a>
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer class="app-footer">
+        <p>&copy; 2026 ArcMusic. Built with precision.</p>
+    </footer>
+    <script src="app.js"></script>
+</body>
+</html>
