@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.arcmusic.arcmusic",
+      "sha256_cert_fingerprints": [
+        "9D:D6:CD:FC:17:33:6F:DA:65:49:68:6D:E7:47:CC:41:CB:E3:D3:6A:98:0B:17:8A:8A:DD:F6:B8:E4:49:0D:8D",
+        "0D:9F:74:70:40:40:B2:93:4E:D6:26:CA:A1:1C:E8:D7:A3:32:E1:7A:F0:48:DD:85:BE:6E:6A:A6:57:22:59:10"
+      ]
+    }
+  }
+]
