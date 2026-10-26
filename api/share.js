@@ -9,6 +9,7 @@ const PROJECT = 'arcmusic-4d9a1';
 const API_KEY = 'AIzaSyC_KPaYLGlcyhHonBWtNdIjjUON9RQOvqY';
 const SHARE_ID = /^[a-z0-9]{8}$/;
 const SITE = 'https://arcmusic-app.vercel.app';
+const DEFAULT_OG_IMAGE = `${SITE}/og-image.png`;
 const ANDROID_PACKAGE = 'com.arcmusic.arcmusic';
 const RELEASES_PAGE = 'https://github.com/Musafir02/arcmusic-app/releases/latest';
 const GITHUB_API = 'https://api.github.com/repos/Musafir02/arcmusic-app/releases/latest';
@@ -38,6 +39,9 @@ const STYLE = `
     }
     header { padding: 28px 24px; display: flex; justify-content: center; }
     .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
         font-family: 'Bricolage Grotesque', sans-serif;
         font-size: 24px;
         font-weight: 800;
@@ -45,6 +49,7 @@ const STYLE = `
         color: #ffffff;
         text-decoration: none;
     }
+    .logo img { height: 28px; width: auto; display: block; flex-shrink: 0; }
     main {
         flex: 1;
         width: 100%;
@@ -245,11 +250,10 @@ async function fetchShare(id) {
 }
 
 function shellHtml({ title, ogTitle, ogDescription, ogUrl, ogImage, noindex, bodyHtml, scriptHtml }) {
-    const imageTags = ogImage
-        ? `    <meta property="og:image" content="${esc(ogImage)}">
+    const image = ogImage || DEFAULT_OG_IMAGE;
+    const imageTags = `    <meta property="og:image" content="${esc(image)}">
     <meta property="og:image:alt" content="${esc(ogTitle)}">
-    <meta name="twitter:image" content="${esc(ogImage)}">`
-        : '';
+    <meta name="twitter:image" content="${esc(image)}">`;
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -258,6 +262,9 @@ function shellHtml({ title, ogTitle, ogDescription, ogUrl, ogImage, noindex, bod
     <title>${esc(title)}</title>
     <meta name="description" content="${esc(ogDescription)}">
     <link rel="canonical" href="${esc(ogUrl)}">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta property="og:site_name" content="ArcMusic">
     <meta property="og:type" content="website">
     <meta property="og:title" content="${esc(ogTitle)}">
@@ -273,7 +280,7 @@ ${imageTags}
     <style>${STYLE}</style>
 </head>
 <body>
-    <header><a class="logo" href="/">ArcMusic</a></header>
+    <header><a class="logo" href="/"><img src="/brand-mark.svg" alt="">ArcMusic</a></header>
     <main>
 ${bodyHtml}
     </main>

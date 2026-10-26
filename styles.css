@@ -52,6 +52,13 @@ body {
     gap: 10px;
 }
 
+.logo-mark {
+    width: 30px;
+    height: 30px;
+    display: block;
+    flex-shrink: 0;
+}
+
 .logo-text {
     font-family: var(--font-heading);
     font-size: 24px;
