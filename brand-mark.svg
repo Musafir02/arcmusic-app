@@ -1,5 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
-  <circle cx="60" cy="60" r="44" fill="none" stroke="#F5EFE6" stroke-width="6"/>
-  <circle cx="60" cy="60" r="30" fill="none" stroke="#D97757" stroke-width="8" stroke-linecap="round" stroke-dasharray="151 38" transform="rotate(20 60 60)"/>
-  <circle cx="60" cy="60" r="8" fill="#F5EFE6"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 512 512">
+  <mask id="face">
+    <circle cx="256.0" cy="292.0" r="92.0" fill="#fff"/>
+    <path d="M206.0 272.0 a20.0 20.0 0 0 1 40.0 0" fill="none" stroke="#000" stroke-width="11.0" stroke-linecap="round"/>
+    <path d="M266.0 272.0 a20.0 20.0 0 0 1 40.0 0" fill="none" stroke="#000" stroke-width="11.0" stroke-linecap="round"/>
+    <path d="M223.4 313.2 a36.0 36.0 0 0 0 65.2 0" fill="none" stroke="#000" stroke-width="12.0" stroke-linecap="round"/>
+  </mask>
+  <path d="M144.0 292.0 a112.0 112.0 0 0 1 224.0 0" fill="none" stroke="(11, 10, 9)" stroke-width="16.0" stroke-linecap="round"/>
+  <ellipse cx="144.0" cy="300.0" rx="32.0" ry="38.0" fill="(11, 10, 9)"/>
+  <ellipse cx="368.0" cy="300.0" rx="32.0" ry="38.0" fill="(11, 10, 9)"/>
+  <circle cx="256.0" cy="292.0" r="92.0" fill="(11, 10, 9)" mask="url(#face)"/>
+  <g transform="translate(356.0 176.0) rotate(-22.0) translate(0.21 9.56)" fill="(11, 10, 9)">
+    <rect x="0" y="28.90" width="7.65" height="28.90" rx="3.82"/>
+    <ellipse cx="-7.65" cy="28.90" rx="12.75" ry="9.78"/>
+    <path d="M3.82 0 q16.15 6 14.45 34 q-2 -18 -17 -22 z"/>
+  </g>
 </svg>
