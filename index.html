@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArcMusic — Free music, no ads, no limits</title>
-    <meta name="description" content="ArcMusic is a free music player for JioSaavn and YouTube Music with synced lyrics, Spotify import and offline downloads.">
+    <title>ArcMusic: Free music, no ads, no limits</title>
+    <meta name="description" content="ArcMusic is a YouTube Music player with synced lyrics, offline downloads, Spotify import and playlists that stay yours.">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <meta property="og:site_name" content="ArcMusic">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ArcMusic — Free music, no ads, no limits">
-    <meta property="og:description" content="JioSaavn + YouTube Music, synced lyrics, Spotify import and offline downloads in one warm player.">
+    <meta property="og:title" content="ArcMusic: Free music, no ads, no limits">
+    <meta property="og:description" content="Synced lyrics, offline downloads, Spotify import and a warm player built for everyday listening.">
     <meta property="og:url" content="https://arcmusic-app.vercel.app/">
     <meta property="og:image" content="https://arcmusic-app.vercel.app/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ArcMusic — Free music, no ads, no limits">
-    <meta name="twitter:description" content="JioSaavn + YouTube Music, synced lyrics, Spotify import and offline downloads in one warm player.">
+    <meta name="twitter:title" content="ArcMusic: Free music, no ads, no limits">
+    <meta name="twitter:description" content="Synced lyrics, offline downloads, Spotify import and a warm player built for everyday listening.">
     <meta name="twitter:image" content="https://arcmusic-app.vercel.app/og-image.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,132 +27,179 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header class="app-header">
+    <header class="app-header" id="site-header">
         <div class="header-container">
-            <div class="logo-area">
+            <a class="logo-area" href="#top" aria-label="ArcMusic home">
                 <img src="brand-mark.svg" alt="" class="logo-mark">
                 <span class="logo-text">ArcMusic</span>
-            </div>
+            </a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a href="#features">Features</a>
+                <a href="#showcase">Screenshots</a>
+                <a href="#download">Download</a>
+            </nav>
+            <a href="#download" class="nav-cta">Get the app</a>
         </div>
     </header>
-    <main>
+
+    <main id="top">
         <section class="hero-section">
+            <div class="hero-glow" aria-hidden="true"></div>
             <div class="hero-container">
-                <div class="hero-content">
+                <div class="hero-copy">
                     <div class="badge-container">
                         <span class="version-badge" id="version-badge">Discovering ArcMusic</span>
                     </div>
-                    <h1>Cinematic music player designed with precision.</h1>
-                    <p>Experience zero-latency audio streaming, custom playlist orchestration, Spotify migrations, and a gorgeous dark theme designed for native performance.</p>
+                    <h1>Your music.<br><span>Your mood.</span></h1>
+                    <p>A warm, focused player for YouTube Music. Synced lyrics, offline downloads and playlists that stay yours. No ads, no noise.</p>
                     <div class="cta-actions">
-                        <a href="#download" class="btn-primary">Download App</a>
+                        <a href="#download" class="btn-primary">Download for Android</a>
+                        <a href="#showcase" class="btn-secondary">See the app</a>
+                    </div>
+                    <div class="hero-notes" aria-label="Highlights">
+                        <span>Synced lyrics</span>
+                        <span>Offline downloads</span>
+                        <span>Spotify import</span>
+                    </div>
+                </div>
+                <div class="hero-art" aria-hidden="true">
+                    <div class="phone phone-back">
+                        <img src="ss/04-home.jpg" alt="">
+                    </div>
+                    <div class="phone phone-front">
+                        <img src="ss/02-player.jpg" alt="">
                     </div>
                 </div>
             </div>
         </section>
+
         <section id="features" class="features-section">
-            <div class="section-title">
-                <h2>Features</h2>
+            <div class="section-title reveal">
+                <span class="eyebrow">What you get</span>
+                <h2>Everything a player should do.</h2>
             </div>
             <div class="features-grid">
-                <div class="feature-card">
+                <div class="feature-card reveal">
                     <div class="feature-icon">&#9835;</div>
-                    <h3>Hi-Fi Audio Stream</h3>
-                    <p>Lossless decoders, low battery drain, and instant background playback handling.</p>
+                    <h3>YouTube Music catalog</h3>
+                    <p>Search, radio and recommendations, all in one clean library.</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-card reveal">
+                    <div class="feature-icon">&#9788;</div>
+                    <h3>Synced lyrics</h3>
+                    <p>Words follow the song. Tap any line to jump to that moment.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">&#8595;</div>
+                    <h3>Offline downloads</h3>
+                    <p>Save tracks in chunks and keep them seekable without a network.</p>
+                </div>
+                <div class="feature-card reveal">
                     <div class="feature-icon">&#8644;</div>
-                    <h3>Spotify Import</h3>
-                    <p>Paste playlist URLs to search, parse, and queue songs from our metadata provider.</p>
+                    <h3>Spotify import</h3>
+                    <p>Paste a public playlist link and bring the tracks across.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">&#9734;</div>
-                    <h3>Personalization</h3>
-                    <p>Beautiful dark theme with orange ember accents and user profile configuration.</p>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">&#9635;</div>
+                    <h3>Playlists and likes</h3>
+                    <p>Make collections, repeat them, and pick up exactly where you stopped.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">&#10003;</div>
+                    <h3>Nothing left behind</h3>
+                    <p>Old songs match on first play, so your library keeps working.</p>
                 </div>
             </div>
         </section>
+
         <section id="showcase" class="showcase-section">
-            <div class="section-title">
-                <h2>App Interface Showcase</h2>
+            <div class="section-title reveal">
+                <span class="eyebrow">Look and feel</span>
+                <h2>Made for the long listen.</h2>
             </div>
-            <div class="carousel-container">
-                <button class="carousel-nav prev" id="carousel-prev">&#8592;</button>
+            <div class="carousel-container reveal">
+                <button class="carousel-nav prev" id="carousel-prev" aria-label="Previous screenshot">&#8592;</button>
                 <div class="carousel-track-wrapper" id="carousel-wrapper">
                     <div class="carousel-track" id="carousel-track">
                         <div class="carousel-slide">
-                            <div class="mockup-container">
-                                <img src="home.png" alt="Home Screen" class="screenshot-img">
-                            </div>
-                            <div class="slide-info">
-                                <h3>Discover Hub</h3>
-                                <p>Browse recent streams, top charts, search suggestions, and explore personalized home feed widgets.</p>
-                            </div>
+                            <div class="mockup-container"><img src="ss/01-sign-in.jpg" alt="Sign in screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>One tap to start</h3><p>Sign in with Google and your library follows you back.</p></div>
                         </div>
                         <div class="carousel-slide">
-                            <div class="mockup-container">
-                                <img src="player.png" alt="Player Screen" class="screenshot-img">
-                            </div>
-                            <div class="slide-info">
-                                <h3>Immersive Player</h3>
-                                <p>Detailed waveform scrubber, lyrics sync, playlist song selection, and background audio service control.</p>
-                            </div>
+                            <div class="mockup-container"><img src="ss/02-player.jpg" alt="Now playing screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Made for the moment</h3><p>Artwork first, controls where your thumb expects them.</p></div>
                         </div>
                         <div class="carousel-slide">
-                            <div class="mockup-container">
-                                <img src="playlist.png" alt="Playlists Screen" class="screenshot-img">
-                            </div>
-                            <div class="slide-info">
-                                <h3>Local Playlists</h3>
-                                <p>Keep your collections organized. Group tracks into customizable playback directories.</p>
-                            </div>
+                            <div class="mockup-container"><img src="ss/03-lyrics.jpg" alt="Synced lyrics screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Words in time</h3><p>Synced lyrics that scroll with the track and seek on tap.</p></div>
                         </div>
                         <div class="carousel-slide">
-                            <div class="mockup-container">
-                                <img src="playlistdetail.png" alt="Playlist Detail Screen" class="screenshot-img">
-                            </div>
-                            <div class="slide-info">
-                                <h3>Playlist Detail</h3>
-                                <p>Manage, reorder, play, search, and delete songs within each unique playlist dynamically.</p>
-                            </div>
+                            <div class="mockup-container"><img src="ss/04-home.jpg" alt="Home screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Your daily listen</h3><p>Continue listening, recommendations and fresh rails in one place.</p></div>
                         </div>
                         <div class="carousel-slide">
-                            <div class="mockup-container">
-                                <img src="spotifyimport.png" alt="Spotify Import" class="screenshot-img">
-                            </div>
-                            <div class="slide-info">
-                                <h3>Spotify Import</h3>
-                                <p>Easily import public Spotify playlists directly to create local metadata and play tracks.</p>
-                            </div>
+                            <div class="mockup-container"><img src="ss/05-search.jpg" alt="Search screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Find it fast</h3><p>Live suggestions, artists and your own library in the same results.</p></div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container"><img src="ss/06-downloads.jpg" alt="Downloads screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Yours, offline</h3><p>Downloads stay seekable and ready when the network disappears.</p></div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container"><img src="ss/07-library.jpg" alt="Library screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Everything together</h3><p>Playlists, liked songs and downloads under one roof.</p></div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container"><img src="ss/08-liked.jpg" alt="Liked songs screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>The songs you keep</h3><p>Your liked list plays in order, then radio takes over.</p></div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container"><img src="ss/09-discover.jpg" alt="Discover screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Moods and moments</h3><p>Pick a feeling and let the app build the queue around it.</p></div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="mockup-container"><img src="ss/10-artist.jpg" alt="Artist screen" class="screenshot-img"></div>
+                            <div class="slide-info"><h3>Go deeper</h3><p>Top tracks and discography for whoever is on right now.</p></div>
                         </div>
                     </div>
                 </div>
-                <button class="carousel-nav next" id="carousel-next">&#8594;</button>
+                <button class="carousel-nav next" id="carousel-next" aria-label="Next screenshot">&#8594;</button>
             </div>
             <div class="carousel-dots" id="carousel-dots"></div>
+            <div class="carousel-progress"><span id="carousel-progress-bar"></span></div>
         </section>
+
         <section id="download" class="download-section">
-            <div class="section-title">
-                <h2>Choose Your Device</h2>
+            <div class="section-title reveal">
+                <span class="eyebrow">Get started</span>
+                <h2>Choose your device.</h2>
             </div>
             <div class="download-grid">
-                <div class="download-card">
-                    <h3>Modern Devices</h3>
-                    <p>Designed for 64-bit Android smartphones. Optimizes system libraries for better execution speed and memory management.</p>
-                    <div class="device-spec">ARM64-v8a Architecture</div>
+                <div class="download-card reveal">
+                    <h3>Modern devices</h3>
+                    <p>For 64-bit Android phones. Optimized libraries, smoother playback.</p>
+                    <div class="device-spec">ARM64-v8a</div>
                     <a href="#" id="download-arm64" class="btn-primary">Download 64-bit APK</a>
                 </div>
-                <div class="download-card">
-                    <h3>Older Devices</h3>
-                    <p>Designed for older or 32-bit Android hardware. Compatible with older processor architectures.</p>
-                    <div class="device-spec">ARMEABI-v7a Architecture</div>
+                <div class="download-card reveal">
+                    <h3>Older devices</h3>
+                    <p>For 32-bit Android hardware and older phones.</p>
+                    <div class="device-spec">ARMEABI-v7a</div>
                     <a href="#" id="download-arm7" class="btn-primary">Download 32-bit APK</a>
                 </div>
             </div>
+            <p class="download-note reveal">Free forever. No ads, no account required to explore.</p>
         </section>
     </main>
+
     <footer class="app-footer">
-        <p>&copy; 2026 ArcMusic. Built with precision.</p>
+        <div class="footer-inner">
+            <a class="logo-area" href="#top">
+                <img src="brand-mark.svg" alt="" class="logo-mark">
+                <span class="logo-text">ArcMusic</span>
+            </a>
+            <p>&copy; 2026 ArcMusic. Built for everyday listening.</p>
+        </div>
     </footer>
     <script src="app.js"></script>
 </body>
